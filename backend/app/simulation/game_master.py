@@ -20,6 +20,7 @@ from .models import (
     SimulationRun,
     Store,
 )
+from .tasks import authorized_shutdown_tasks
 
 
 class GameMaster:
@@ -311,10 +312,10 @@ class GameMaster:
             )
 
     def _build_metrics(self) -> RunMetrics:
-        eligible_equipment = [
-            item for item in self.store.equipment if item.criticality == Criticality.NON_CRITICAL
-        ]
-        completed = len(self.completed_equipment_ids.intersection({item.id for item in eligible_equipment}))
+        eligible_equipment_ids = {
+            equipment.id for _, equipment in authorized_shutdown_tasks(self.store)
+        }
+        completed = len(self.completed_equipment_ids.intersection(eligible_equipment_ids))
         staff_minutes = sum(agent.minutes_spent_on_intervention for agent in self.store.agents)
         latest_action_minute = max(
             (
@@ -332,9 +333,9 @@ class GameMaster:
             emissions_kg_co2=round(
                 self.total_kwh * self.store.grid_emission_factor_kg_per_kwh, 4
             ),
-            shutdown_tasks_total=len(eligible_equipment),
+            shutdown_tasks_total=len(eligible_equipment_ids),
             shutdown_tasks_completed=completed,
-            completion_rate=round(completed / max(len(eligible_equipment), 1), 4),
+            completion_rate=round(completed / max(len(eligible_equipment_ids), 1), 4),
             staff_minutes=round(staff_minutes, 2),
             overtime_minutes=float(overtime),
             rejected_actions=self.rejected_actions,

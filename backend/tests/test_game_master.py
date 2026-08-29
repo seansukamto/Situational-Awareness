@@ -70,3 +70,15 @@ def test_customer_agents_move_and_exit_before_shutdown():
     assert customer_events
     assert all(not customer.active for customer in run.store.customers)
     assert any(event.type == EventType.CUSTOMER_EXITED for event in customer_events)
+
+
+def test_completion_metrics_use_every_authorized_assigned_task():
+    run = GameMaster(build_demo_store(), get_scenario("green-close"), 42).run()
+    completed_targets = {
+        event.target_id
+        for event in run.events
+        if event.type == EventType.EQUIPMENT_STATE_CHANGED
+    }
+    assert run.metrics.shutdown_tasks_total == 4
+    assert run.metrics.shutdown_tasks_completed == len(completed_targets)
+    assert "cold_storage" not in completed_targets

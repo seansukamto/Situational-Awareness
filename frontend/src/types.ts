@@ -109,6 +109,7 @@ export type ScenarioSettings = {
   scenario_id: "green-close";
   operating_days_per_year: number;
   labour_cost_sgd_per_hour: number;
+  annual_revenue_sgd: number;
   equipment_load_uncertainty_pct: number;
   tariff_uncertainty_pct: number;
   adoption_rate: number;

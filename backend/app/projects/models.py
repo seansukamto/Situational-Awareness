@@ -29,6 +29,7 @@ class ScenarioSettings(BaseModel):
     scenario_id: Literal["green-close"] = "green-close"
     operating_days_per_year: int = Field(default=360, ge=1, le=366)
     labour_cost_sgd_per_hour: float = Field(default=16.5, ge=0, le=250)
+    annual_revenue_sgd: float = Field(default=1_500_000, gt=0, le=10_000_000_000)
     equipment_load_uncertainty_pct: float = Field(default=12, ge=0, le=75)
     tariff_uncertainty_pct: float = Field(default=5, ge=0, le=50)
     adoption_rate: float = Field(default=0.85, ge=0, le=1)

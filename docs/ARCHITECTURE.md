@@ -47,8 +47,9 @@ probability threshold, not the underlying random event.
 
 Each impact analysis runs matched baseline and intervention seeds. Equipment
 load, tariff, adoption, and behaviour variation are propagated to P10, P50, and
-P90 outputs. The bill calibrates the tariff only; whole-store usage is never
-used to force-fit the closing-equipment model.
+P90 outputs. Profit-margin impact also uses the manager's editable annual-store-
+revenue assumption. The bill calibrates the tariff only; whole-store usage is
+never used to force-fit the closing-equipment model.
 
 ## Data and privacy
 
@@ -57,6 +58,8 @@ used to force-fit the closing-equipment model.
 - Raw files are discarded and uploaded filenames are normalized before storage.
 - Staff links use random URL-safe tokens, expire after 24 hours, and expose only
   the authorized task list and completion state.
+- Simulation completion metrics and staff handoff use the same authorized-task
+  function, which excludes protected loads and assignments outside role authority.
 - Customer and staff agents use archetypes rather than real identities.
 
 ## Extension points

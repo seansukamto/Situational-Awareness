@@ -8,7 +8,10 @@ def build_decision_brief(project: Project, bill: UtilityBill, analysis: ImpactAn
     energy = analysis.metrics["annual_energy_saved"]
     emissions = analysis.metrics["annual_emissions_avoided"]
     net = analysis.metrics["net_operating_impact"]
+    margin = analysis.metrics["profit_margin_impact"]
     completion = analysis.metrics["completion_rate_change"]
+    staff = analysis.metrics["staff_minutes_change"]
+    consumer = analysis.metrics["customer_service_incidents"]
     recommendation = (
         "Proceed to a time-boxed in-store pilot with sub-metering and staff feedback."
         if completion.p50 > 0 and net.p50 >= 0
@@ -36,7 +39,10 @@ This is a simulation-supported pilot decision, not a guaranteed savings forecast
 | Annual utility savings | {utility.p10:.1f} | {utility.p50:.1f} | {utility.p90:.1f} | {utility.unit} |
 | Annual emissions avoided | {emissions.p10:.1f} | {emissions.p50:.1f} | {emissions.p90:.1f} | {emissions.unit} |
 | Net operating impact | {net.p10:.1f} | {net.p50:.1f} | {net.p90:.1f} | {net.unit} |
+| Profit-margin impact | {margin.p10:.2f} | {margin.p50:.2f} | {margin.p90:.2f} | {margin.unit} |
 | Task-completion change | {completion.p10:.1f} | {completion.p50:.1f} | {completion.p90:.1f} | {completion.unit} |
+| Staff effort change | {staff.p10:.1f} | {staff.p50:.1f} | {staff.p90:.1f} | {staff.unit} |
+| Customer-service incidents | {consumer.p10:.1f} | {consumer.p50:.1f} | {consumer.p90:.1f} | {consumer.unit} |
 
 ## Evidence boundary
 

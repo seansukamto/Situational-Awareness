@@ -30,6 +30,8 @@ def test_demo_bootstrap_and_analysis(tmp_path):
             "annual_utility_savings"
         ]["p10"]
         assert body["calibration"]["model_coverage_ratio"] < 1
+        assert "profit_margin_impact" in body["metrics"]
+        assert "customer_service_incidents" in body["metrics"]
         report = client.get(
             f"/api/projects/project_demo_sg_01/analyses/{body['id']}/report.md"
         )
@@ -93,11 +95,21 @@ def test_staff_checklist_is_scoped_and_completable(tmp_path):
     app.state.repository = repository
     with TestClient(app) as client:
         client.post("/api/demo/bootstrap")
+        project = repository.get_project("project_demo_sg_01")
+        assert project is not None
+        project.store.agents[0].assigned_equipment_ids.append("cold_storage")
+        repository.update_store(project.id, project.store)
         response = client.post("/api/projects/project_demo_sg_01/checklists")
         assert response.status_code == 201
         checklist = response.json()
         assert checklist["tasks"]
         assert all(task["equipment_id"] != "cold_storage" for task in checklist["tasks"])
+        assert {task["equipment_id"] for task in checklist["tasks"]} == {
+            "checkout_pos",
+            "demo_displays",
+            "display_wall_lights",
+            "stockroom_lights",
+        }
 
         token = checklist["token"]
         missing = client.post(f"/api/checklists/{token}/tasks/missing/complete")

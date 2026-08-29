@@ -25,6 +25,10 @@ export function ImpactPanel({
   const savings = analysis?.metrics.annual_utility_savings;
   const emissions = analysis?.metrics.annual_emissions_avoided;
   const completion = analysis?.metrics.completion_rate_change;
+  const net = analysis?.metrics.net_operating_impact;
+  const margin = analysis?.metrics.profit_margin_impact;
+  const staff = analysis?.metrics.staff_minutes_change;
+  const consumer = analysis?.metrics.customer_service_incidents;
   return (
     <section className="impact-section" aria-labelledby="impact-title">
       <div className="section-heading">
@@ -32,7 +36,7 @@ export function ImpactPanel({
           <span className="kicker">Matched-seed comparison</span>
           <h2 id="impact-title">Decision impact</h2>
         </div>
-        <span className="evidence-badge">120 simulated closes</span>
+        <span className="evidence-badge">{analysis?.sample_count ?? "…"} simulated closes</span>
       </div>
       <div className="impact-grid">
         <article className="impact-card impact-primary">
@@ -46,19 +50,29 @@ export function ImpactPanel({
           )}
         </article>
         <article className="impact-card">
-          <span>Task completion</span>
-          <strong>{completion ? signed(completion.p50, " pp") : signed(comparison.completion_rate.difference * 100, " pp")}</strong>
-          <small>Median improvement versus current close</small>
+          <span>Net operating impact</span>
+          <strong>{net ? `${net.p50 < 0 ? "−" : "+"}S$${Math.abs(net.p50).toFixed(0)}` : "Calculating…"}</strong>
+          <small>{margin ? `${signed(margin.p50)} basis points of assumed annual revenue` : "Utility savings less incremental overtime"}</small>
         </article>
         <article className="impact-card">
-          <span>Energy after close</span>
-          <strong>{signed(comparison.energy_kwh.percent_change ?? 0, "%")}</strong>
-          <small>{Math.abs(comparison.energy_kwh.difference).toFixed(2)} kWh in this replay</small>
+          <span>Staff effort</span>
+          <strong>{staff ? signed(staff.p50, " min") : "Calculating…"}</strong>
+          <small>Median additional task interaction time per close</small>
+        </article>
+        <article className="impact-card">
+          <span>Consumer service</span>
+          <strong>{consumer ? consumer.p50.toFixed(0) : comparison.intervention_run.metrics.customer_service_incidents}</strong>
+          <small>Median incidents per close; unsafe actions are blocked</small>
         </article>
         <article className="impact-card">
           <span>Emissions avoided</span>
           <strong>{emissions ? `${emissions.p50.toFixed(0)} kg` : "Calculating…"}</strong>
           <small>Operational CO₂e per year, median estimate</small>
+        </article>
+        <article className="impact-card">
+          <span>Task completion</span>
+          <strong>{completion ? signed(completion.p50, " pp") : signed(comparison.completion_rate.difference * 100, " pp")}</strong>
+          <small>{Math.abs(comparison.energy_kwh.difference).toFixed(2)} kWh avoided in this replay</small>
         </article>
       </div>
       <p className="uncertainty-note">

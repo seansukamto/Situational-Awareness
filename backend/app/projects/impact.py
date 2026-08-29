@@ -61,8 +61,10 @@ def analyse_project(
     cost_saved: list[float] = []
     emissions_avoided: list[float] = []
     net_operating_impact: list[float] = []
+    profit_margin_impact: list[float] = []
     completion_change: list[float] = []
     staff_minutes_change: list[float] = []
+    customer_service_incidents: list[float] = []
 
     for index in range(samples):
         store = deepcopy(project.store)
@@ -106,12 +108,17 @@ def analyse_project(
         energy_saved.append(annual_kwh)
         cost_saved.append(annual_cost)
         emissions_avoided.append(annual_emissions)
-        net_operating_impact.append(annual_cost - labour_cost)
+        sample_net_impact = annual_cost - labour_cost
+        net_operating_impact.append(sample_net_impact)
+        profit_margin_impact.append(sample_net_impact / settings.annual_revenue_sgd * 10_000)
         completion_change.append(
             (intervention.metrics.completion_rate - baseline.metrics.completion_rate) * 100
         )
         staff_minutes_change.append(
             intervention.metrics.staff_minutes - baseline.metrics.staff_minutes
+        )
+        customer_service_incidents.append(
+            float(intervention.metrics.customer_service_incidents)
         )
 
     modelled_daily_kwh = sum(item.power_kw() for item in project.store.equipment) * 14
@@ -151,6 +158,12 @@ def analyse_project(
                 net_operating_impact,
                 "Utility savings less simulated incremental overtime labour cost.",
             ),
+            "profit_margin_impact": _distribution(
+                "Profit-margin impact",
+                "basis points",
+                profit_margin_impact,
+                "Net operating impact divided by the manager's assumed annual store revenue.",
+            ),
             "completion_rate_change": _distribution(
                 "Shutdown task completion change",
                 "percentage points",
@@ -162,6 +175,12 @@ def analyse_project(
                 "minutes/close",
                 staff_minutes_change,
                 "Task interaction time only; validate with a real store pilot.",
+            ),
+            "customer_service_incidents": _distribution(
+                "Customer-service incidents",
+                "incidents/close",
+                customer_service_incidents,
+                "Actions blocked by the Game Master are not counted as incidents.",
             ),
         },
         assumptions=[
@@ -190,6 +209,15 @@ def analyse_project(
                 unit="± percent",
                 kind=EvidenceKind.ASSUMED,
                 source="Demo equipment inventory pending sub-meter validation",
+                editable=True,
+            ),
+            ImpactAssumption(
+                id="annual_revenue",
+                label="Annual store revenue",
+                value=settings.annual_revenue_sgd,
+                unit="SGD/year",
+                kind=EvidenceKind.ASSUMED,
+                source="Manager scenario settings; used only for margin impact",
                 editable=True,
             ),
             ImpactAssumption(

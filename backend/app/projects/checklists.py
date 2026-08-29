@@ -5,29 +5,23 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from .models import ChecklistSession, ChecklistTask, Project
+from ..simulation.tasks import authorized_shutdown_tasks
 
 
 def create_checklist(project: Project) -> ChecklistSession:
-    equipment_by_id = {item.id: item for item in project.store.equipment}
     zones_by_id = {item.id: item for item in project.store.zones}
     tasks: list[ChecklistTask] = []
-    seen: set[str] = set()
-    for agent in project.store.agents:
-        for equipment_id in agent.assigned_equipment_ids:
-            if equipment_id in seen:
-                continue
-            equipment = equipment_by_id[equipment_id]
-            seen.add(equipment_id)
-            tasks.append(
-                ChecklistTask(
-                    id=f"task_{equipment.id}",
-                    equipment_id=equipment.id,
-                    label=equipment.label,
-                    zone_label=zones_by_id[equipment.zone_id].label,
-                    assigned_role=agent.role.replace("_", " ").title(),
-                    criticality=equipment.criticality,
-                )
+    for agent, equipment in authorized_shutdown_tasks(project.store):
+        tasks.append(
+            ChecklistTask(
+                id=f"task_{equipment.id}",
+                equipment_id=equipment.id,
+                label=equipment.label,
+                zone_label=zones_by_id[equipment.zone_id].label,
+                assigned_role=agent.role.replace("_", " ").title(),
+                criticality=equipment.criticality,
             )
+        )
     created_at = datetime.now(UTC)
     return ChecklistSession(
         id=f"checklist_{uuid4().hex[:12]}",

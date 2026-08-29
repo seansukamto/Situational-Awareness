@@ -26,7 +26,7 @@ Requires Python 3.11+ and Node.js 22 (recommended). No Docker service is needed.
   outputs locally. Set `SA_DATABASE_PATH` to choose the database location.
 - Impact analysis runs matched-seed Monte Carlo comparisons and returns P10,
   P50, and P90 ranges for energy, cost, emissions, staff time, task completion,
-  and net operating impact.
+  customer-service incidents, net operating impact, and profit-margin impact.
 - Every output labels measured, derived, assumed, and simulated evidence. The
   synthetic bill in `data/demo/` is fictional and safe for demonstrations.
 
@@ -102,7 +102,8 @@ curl -X POST http://127.0.0.1:8000/api/demo/bootstrap
 Open `http://127.0.0.1:8000/docs` for the project, bill upload/confirmation,
 scenario settings, simulation, and impact-analysis endpoints.
 
-See the [architecture guide](docs/ARCHITECTURE.md) and [API reference](docs/API.md)
+See the [architecture guide](docs/ARCHITECTURE.md),
+[agent-design reference](docs/AGENT_DESIGN.md), and [API reference](docs/API.md)
 for implementation and extension details.
 
 ## Verification
