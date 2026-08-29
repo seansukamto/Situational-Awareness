@@ -16,6 +16,18 @@ Close is a scenario inside Situational Awareness, not the product name.
 - `frontend/`: React, TypeScript, and React Three Fiber application.
 - `data/`: versioned demo inputs and reference datasets.
 
+## Data and evidence model
+
+- Uploaded PDF, JSON, CSV, or TXT bills are parsed in memory; the raw file is
+  discarded and extracted fields require manager confirmation.
+- SQLite stores project configuration, confirmed bill fields, and analysis
+  outputs locally. Set `SA_DATABASE_PATH` to choose the database location.
+- Impact analysis runs matched-seed Monte Carlo comparisons and returns P10,
+  P50, and P90 ranges for energy, cost, emissions, staff time, task completion,
+  and net operating impact.
+- Every output labels measured, derived, assumed, and simulated evidence. The
+  synthetic bill in `data/demo/` is fictional and safe for demonstrations.
+
 ## Local development
 
 ### Backend
@@ -38,6 +50,15 @@ npm run dev
 
 The web application expects the API at `http://127.0.0.1:8000`. Set
 `VITE_API_URL` to override it.
+
+Create the Singapore demo project and bill with:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/demo/bootstrap
+```
+
+Open `http://127.0.0.1:8000/docs` for the project, bill upload/confirmation,
+scenario settings, simulation, and impact-analysis endpoints.
 
 ## Verification
 

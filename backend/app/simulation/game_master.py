@@ -179,7 +179,10 @@ class GameMaster:
             + 0.25 * overtime_pressure
         )
         probability = 1 / (1 + math.exp(-score))
-        return self.random.random() < probability
+        # A per-agent, per-tick draw keeps baseline/intervention comparisons paired.
+        # The intervention changes the probability, not the underlying random event.
+        paired_draw = random.Random(f"{self.seed}:{minute}:{agent.id}:attempt").random()
+        return paired_draw < probability
 
     def _validate(self, proposal: ActionProposal) -> tuple[bool, str]:
         agent = self._agent(proposal.agent_id)

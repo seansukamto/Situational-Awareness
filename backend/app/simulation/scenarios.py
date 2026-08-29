@@ -146,6 +146,7 @@ SCENARIOS = {
         description="No assigned zones or contextual team feedback.",
         start_minute=21 * 60 + 30,
         end_minute=22 * 60 + 30,
+        tick_minutes=5,
         intervention=Intervention(id="none", label="No intervention", kind="baseline"),
     ),
     "green-close": Scenario(
@@ -154,6 +155,7 @@ SCENARIOS = {
         description="Assigned shutdown zones with a timely team reminder and manager support.",
         start_minute=21 * 60 + 30,
         end_minute=22 * 60 + 30,
+        tick_minutes=5,
         intervention=Intervention(
             id="assigned-zone-team-feedback",
             label="Assigned zones and team feedback",

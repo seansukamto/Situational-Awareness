@@ -1,7 +1,12 @@
+import os
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from .projects.api import router as projects_router
+from .projects.repository import SQLiteRepository
 from .simulation import GameMaster, build_demo_store, get_scenario
 from .simulation.models import ScenarioComparison, SimulationRun, Store
 from .simulation.scenarios import list_scenarios
@@ -19,6 +24,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+database_path = Path(
+    os.getenv(
+        "SA_DATABASE_PATH",
+        str(Path(__file__).resolve().parents[1] / "data" / "situational_awareness.sqlite3"),
+    )
+)
+app.state.repository = SQLiteRepository(database_path)
+app.include_router(projects_router)
 
 
 class RunRequest(BaseModel):

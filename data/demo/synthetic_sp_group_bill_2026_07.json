@@ -1,0 +1,10 @@
+{
+  "document_type": "synthetic_utility_bill",
+  "account_label": "Synthetic Orchard Road retail store",
+  "period_start": "2026-07-01",
+  "period_end": "2026-07-31",
+  "total_kwh": 4860,
+  "total_cost_sgd": 1550.83,
+  "currency": "SGD",
+  "disclaimer": "Fictional data for product demonstration; not an SP Group bill."
+}
