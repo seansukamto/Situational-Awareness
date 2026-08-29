@@ -7,6 +7,7 @@ import type {
   ScenarioSettings,
   ScenarioComparison,
   Store,
+  StoreSettings,
   UtilityBill,
 } from "./types";
 
@@ -29,8 +30,9 @@ export function fetchStore(): Promise<Store> {
   return request("/api/demo/store");
 }
 
-export function fetchComparison(seed: number): Promise<ScenarioComparison> {
-  return request(`/api/simulations/compare?seed=${seed}`);
+export function fetchComparison(seed: number, projectId?: string): Promise<ScenarioComparison> {
+  const project = projectId ? `&project_id=${encodeURIComponent(projectId)}` : "";
+  return request(`/api/simulations/compare?seed=${seed}${project}`);
 }
 
 export function runAnalysis(projectId: string, seed: number): Promise<ImpactAnalysis> {
@@ -44,8 +46,10 @@ export function runAnalysis(projectId: string, seed: number): Promise<ImpactAnal
 export function fetchExplanations(
   scenarioId: "baseline" | "green-close",
   seed: number,
+  projectId?: string,
 ): Promise<EventExplanation[]> {
-  return request(`/api/simulations/explanations?scenario_id=${scenarioId}&seed=${seed}`);
+  const project = projectId ? `&project_id=${encodeURIComponent(projectId)}` : "";
+  return request(`/api/simulations/explanations?scenario_id=${scenarioId}&seed=${seed}${project}`);
 }
 
 export function createStaffChecklist(projectId: string): Promise<ChecklistSession> {
@@ -65,6 +69,17 @@ export function updateScenarioSettings(
   settings: ScenarioSettings,
 ): Promise<Project> {
   return request(`/api/projects/${projectId}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+}
+
+export function updateStoreSettings(
+  projectId: string,
+  settings: StoreSettings,
+): Promise<Project> {
+  return request(`/api/projects/${projectId}/store`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings),

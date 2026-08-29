@@ -55,6 +55,38 @@ def test_demo_bootstrap_refreshes_an_older_store_model(tmp_path):
         assert len(response.json()["project"]["store"]["customers"]) == 4
 
 
+def test_store_settings_persist_and_drive_simulation(tmp_path):
+    app.state.repository = SQLiteRepository(tmp_path / "store-settings.sqlite3")
+    with TestClient(app) as client:
+        project = client.post("/api/demo/bootstrap").json()["project"]
+        store = project["store"]
+        payload = {
+            "name": "Orchard Night Store",
+            "timezone": "Asia/Singapore",
+            "floor_area_m2": 735,
+            "opening_minute": 600,
+            "closing_minute": 1350,
+            "tariff_sgd_per_kwh": 0.41,
+            "grid_emission_factor_kg_per_kwh": 0.39,
+        }
+        updated = client.put(
+            "/api/projects/project_demo_sg_01/store",
+            json=payload,
+        )
+        assert updated.status_code == 200
+        assert updated.json()["store"]["name"] == "Orchard Night Store"
+        assert updated.json()["store"]["floor_area_m2"] == 735
+        assert updated.json()["store"]["zones"] == store["zones"]
+
+        comparison = client.get(
+            "/api/simulations/compare",
+            params={"seed": 42, "project_id": "project_demo_sg_01"},
+        )
+        assert comparison.status_code == 200
+        assert comparison.json()["baseline_run"]["store"]["name"] == "Orchard Night Store"
+        assert comparison.json()["baseline_run"]["store"]["closing_minute"] == 1350
+
+
 def test_uploaded_bill_requires_confirmation(tmp_path):
     app.state.repository = SQLiteRepository(tmp_path / "upload.sqlite3")
     with TestClient(app) as client:

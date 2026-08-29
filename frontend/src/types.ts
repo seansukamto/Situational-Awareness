@@ -115,6 +115,17 @@ export type ScenarioSettings = {
   adoption_rate: number;
 };
 
+export type StoreSettings = Pick<
+  Store,
+  | "name"
+  | "timezone"
+  | "floor_area_m2"
+  | "opening_minute"
+  | "closing_minute"
+  | "tariff_sgd_per_kwh"
+  | "grid_emission_factor_kg_per_kwh"
+>;
+
 export type Project = {
   id: string;
   name: string;

@@ -21,6 +21,7 @@ from .models import (
     Project,
     ProjectCreate,
     ScenarioSettings,
+    StoreSettings,
     UtilityBill,
     UtilityBillDraft,
 )
@@ -127,6 +128,19 @@ def update_settings(
 ) -> Project:
     require_project(repo, project_id)
     project = repo.update_settings(project_id, settings)
+    assert project is not None
+    return project
+
+
+@router.put("/projects/{project_id}/store", response_model=Project)
+def update_store_settings(
+    project_id: str,
+    settings: StoreSettings,
+    repo: SQLiteRepository = Depends(repository),
+) -> Project:
+    current = require_project(repo, project_id)
+    store = current.store.model_copy(update=settings.model_dump())
+    project = repo.update_store(project_id, store)
     assert project is not None
     return project
 

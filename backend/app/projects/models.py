@@ -35,6 +35,22 @@ class ScenarioSettings(BaseModel):
     adoption_rate: float = Field(default=0.85, ge=0, le=1)
 
 
+class StoreSettings(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    timezone: str = Field(min_length=3, max_length=64)
+    floor_area_m2: float = Field(gt=0, le=1_000_000)
+    opening_minute: int = Field(ge=0, lt=24 * 60)
+    closing_minute: int = Field(gt=0, le=24 * 60)
+    tariff_sgd_per_kwh: float = Field(gt=0, le=100)
+    grid_emission_factor_kg_per_kwh: float = Field(ge=0, le=10)
+
+    @model_validator(mode="after")
+    def closing_is_after_opening(self):
+        if self.closing_minute <= self.opening_minute:
+            raise ValueError("closing_minute must be after opening_minute")
+        return self
+
+
 class ProjectCreate(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     store: Store

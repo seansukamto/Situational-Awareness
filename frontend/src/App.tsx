@@ -9,10 +9,9 @@ import {
   fetchExplanations,
   runAnalysis,
 } from "./api";
-import { BillUpload } from "./components/BillUpload";
+import { ConfigurationPage } from "./components/ConfigurationPage";
 import { ImpactPanel } from "./components/ImpactPanel";
 import { ReplayTimeline } from "./components/ReplayTimeline";
-import { ScenarioSettings } from "./components/ScenarioSettings";
 import { StaffHandoff } from "./components/StaffHandoff";
 import type {
   SimulationEvent,
@@ -39,11 +38,13 @@ export default function App() {
   const [confirmedBill, setConfirmedBill] = useState<UtilityBill | null>(null);
   const [showHandoff, setShowHandoff] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [activeView, setActiveView] = useState<"simulation" | "configuration">("simulation");
 
   const demo = useQuery({ queryKey: ["demo"], queryFn: bootstrapDemo, retry: 1 });
   const comparison = useQuery({
-    queryKey: ["comparison", seed],
-    queryFn: () => fetchComparison(seed),
+    queryKey: ["comparison", demo.data?.project.id, seed],
+    queryFn: () => fetchComparison(seed, demo.data!.project.id),
+    enabled: Boolean(demo.data?.project.id),
     retry: 1,
   });
   const analysis = useQuery({
@@ -53,8 +54,13 @@ export default function App() {
     retry: 1,
   });
   const explanations = useQuery({
-    queryKey: ["explanations", scenarioView, seed],
-    queryFn: () => fetchExplanations(scenarioView === "baseline" ? "baseline" : "green-close", seed),
+    queryKey: ["explanations", demo.data?.project.id, scenarioView, seed],
+    queryFn: () => fetchExplanations(
+      scenarioView === "baseline" ? "baseline" : "green-close",
+      seed,
+      demo.data!.project.id,
+    ),
+    enabled: Boolean(demo.data?.project.id),
     retry: 1,
   });
   const handoff = useMutation({
@@ -86,6 +92,7 @@ export default function App() {
     : null;
   const recentEvents = events.slice(Math.max(0, step - 4), step).reverse();
   const bill = confirmedBill ?? demo.data?.bills[0];
+  const bills = demo.data?.bills ?? [];
   const loading = demo.isLoading || comparison.isLoading;
   const error = demo.error ?? comparison.error;
 
@@ -125,6 +132,13 @@ export default function App() {
     }
   };
 
+  const openSimulationSection = (sectionId: "simulation" | "impact" | "evidence") => {
+    setActiveView("simulation");
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => document.getElementById(sectionId)?.scrollIntoView());
+    });
+  };
+
   return (
     <div className="product-shell">
       <aside className="sidebar">
@@ -133,9 +147,10 @@ export default function App() {
           <div><strong>Situational</strong><span>Awareness</span></div>
         </div>
         <nav aria-label="Primary navigation">
-          <a href="#simulation" className="active"><i>01</i><span>Simulation</span></a>
-          <a href="#impact"><i>02</i><span>Impact</span></a>
-          <a href="#evidence"><i>03</i><span>Evidence</span></a>
+          <button type="button" aria-label="Simulation" className={activeView === "simulation" ? "active" : ""} onClick={() => openSimulationSection("simulation")}><i>01</i><span>Simulation</span></button>
+          <button type="button" aria-label="Impact" onClick={() => openSimulationSection("impact")}><i>02</i><span>Impact</span></button>
+          <button type="button" aria-label="Evidence" onClick={() => openSimulationSection("evidence")}><i>03</i><span>Evidence</span></button>
+          <button type="button" className={`nav-configuration ${activeView === "configuration" ? "active" : ""}`} aria-current={activeView === "configuration" ? "page" : undefined} onClick={() => { setActiveView("configuration"); window.scrollTo({ top: 0, behavior: "smooth" }); }}><i>04</i><span>Configuration</span></button>
         </nav>
         <div className="side-context">
           <span>Project</span>
@@ -149,27 +164,42 @@ export default function App() {
         <header className="workspace-header">
           <div>
             <span className="breadcrumb">Projects / {project.name}</span>
-            <h1>Closing transition simulator</h1>
+            <h1>{activeView === "configuration" ? "Store configuration" : "Closing transition simulator"}</h1>
           </div>
           <div className="header-actions">
-            <label className="seed-control">
-              <span>Replay seed</span>
-              <select value={seed} onChange={(event) => setSeed(Number(event.target.value))}>
-                <option value={42}>42 · Typical</option>
-                <option value={91}>91 · Busy close</option>
-                <option value={173}>173 · Slow adoption</option>
-              </select>
-            </label>
-            <button type="button" className="handoff-button" disabled={handoff.isPending} onClick={() => handoff.mutate()}>
-              {handoff.isPending ? "Creating…" : "Staff handoff"}
-            </button>
-            <button type="button" className="export-button" disabled={!analysis.data || exporting} onClick={exportReport}>
-              {exporting ? "Preparing…" : "Export brief"}
-            </button>
+            {activeView === "configuration" ? (
+              <button type="button" className="back-simulation-button" onClick={() => openSimulationSection("simulation")}><span>←</span> Back to simulation</button>
+            ) : (
+              <>
+                <label className="seed-control">
+                  <span>Replay seed</span>
+                  <select value={seed} onChange={(event) => setSeed(Number(event.target.value))}>
+                    <option value={42}>42 · Typical</option>
+                    <option value={91}>91 · Busy close</option>
+                    <option value={173}>173 · Slow adoption</option>
+                  </select>
+                </label>
+                <button type="button" className="handoff-button" disabled={handoff.isPending} onClick={() => handoff.mutate()}>
+                  {handoff.isPending ? "Creating…" : "Staff handoff"}
+                </button>
+                <button type="button" className="export-button" disabled={!analysis.data || exporting} onClick={exportReport}>
+                  {exporting ? "Preparing…" : "Export brief"}
+                </button>
+              </>
+            )}
           </div>
         </header>
 
-        <section className="simulation-section" id="simulation">
+        {activeView === "configuration" ? (
+          <ConfigurationPage
+            project={project}
+            bills={confirmedBill ? [confirmedBill, ...bills] : bills}
+            analysis={analysis.data}
+            onConfirmed={setConfirmedBill}
+          />
+        ) : (
+          <>
+          <section className="simulation-section" id="simulation">
           <div className="simulation-topline">
             <div className="scenario-switch" role="group" aria-label="Scenario shown">
               <button
@@ -240,12 +270,11 @@ export default function App() {
               </div>
             </aside>
           </div>
-        </section>
+          </section>
 
-        <ImpactPanel comparison={comparison.data} analysis={analysis.data} />
-        <ScenarioSettings project={project} />
+          <ImpactPanel comparison={comparison.data} analysis={analysis.data} />
 
-        <section className="evidence-section" id="evidence">
+          <section className="evidence-section" id="evidence">
           <div className="section-heading">
             <div><span className="kicker">Traceable inputs</span><h2>Evidence boundary</h2></div>
             <span className="evidence-badge evidence-confirmed">Confirmed source</span>
@@ -270,13 +299,10 @@ export default function App() {
               <div><i className="evidence-assumed" /><span><strong>Assumed</strong>Equipment loads and operating days</span></div>
               <div><i className="evidence-simulated" /><span><strong>Simulated</strong>Behaviour and event outcomes</span></div>
             </article>
-            <BillUpload projectId={project.id} onConfirmed={setConfirmedBill} />
-            <article className="privacy-card">
-              <span className="privacy-lock">⌁</span>
-              <div><strong>Privacy by default</strong><p>Raw utility files are parsed in memory and discarded. The local database stores only confirmed fields, assumptions, and simulation outputs.</p></div>
-            </article>
           </div>
-        </section>
+          </section>
+          </>
+        )}
       </main>
       {showHandoff && handoff.data && <StaffHandoff checklist={handoff.data} onClose={() => setShowHandoff(false)} />}
     </div>
