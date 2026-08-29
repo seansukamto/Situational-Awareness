@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .agents.api import router as agents_router
+from .game.api import router as game_router
 from .projects.api import router as projects_router
 from .projects.repository import SQLiteRepository
 from .simulation import GameMaster, build_demo_store, get_scenario
@@ -35,6 +36,7 @@ database_path = Path(
 app.state.repository = SQLiteRepository(database_path)
 app.include_router(projects_router)
 app.include_router(agents_router)
+app.include_router(game_router)
 
 
 class RunRequest(BaseModel):

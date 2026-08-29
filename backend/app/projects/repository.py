@@ -7,6 +7,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from ..agents.models import AgentIntelligenceSettings
+from ..game.models import StaffProfile
+from ..game.security import verify_staff_pin
 from ..simulation.models import Store
 from .models import (
     BillConfirmation,
@@ -88,6 +90,10 @@ class SQLiteRepository:
                 );
                 CREATE INDEX IF NOT EXISTS idx_simulation_runs_project_created
                 ON simulation_runs(project_id, created_at DESC);
+                CREATE TABLE IF NOT EXISTS schema_versions (
+                    version INTEGER PRIMARY KEY,
+                    applied_at TEXT NOT NULL
+                );
                 """
             )
             project_columns = {
@@ -98,6 +104,38 @@ class SQLiteRepository:
                 connection.execute(
                     "ALTER TABLE projects ADD COLUMN agent_settings_json TEXT NOT NULL DEFAULT '{}'"
                 )
+            self._migrate_live_game_staff(connection)
+
+    @staticmethod
+    def _migrate_live_game_staff(connection: sqlite3.Connection) -> None:
+        version = 1
+        applied = connection.execute(
+            "SELECT 1 FROM schema_versions WHERE version = ?", (version,)
+        ).fetchone()
+        if applied:
+            return
+        connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS staff_profiles (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                normalized_name TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                pin_salt BLOB NOT NULL,
+                pin_hash BLOB NOT NULL,
+                active INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(project_id, normalized_name)
+            );
+            CREATE INDEX IF NOT EXISTS idx_staff_profiles_project_active
+            ON staff_profiles(project_id, active, normalized_name);
+            """
+        )
+        connection.execute(
+            "INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)",
+            (version, _now().isoformat()),
+        )
 
     def create_project(self, payload: ProjectCreate, *, project_id: str | None = None) -> Project:
         now = _now()
@@ -175,6 +213,127 @@ class SQLiteRepository:
                 (store.model_dump_json(), now.isoformat(), project_id),
             )
         return None if cursor.rowcount == 0 else self.get_project(project_id)
+
+    def create_staff_profile(
+        self,
+        profile: StaffProfile,
+        pin_salt: bytes,
+        pin_hash: bytes,
+    ) -> StaffProfile:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO staff_profiles (
+                    id, project_id, normalized_name, payload_json, pin_salt,
+                    pin_hash, active, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    profile.id,
+                    profile.project_id,
+                    profile.normalized_name,
+                    profile.model_dump_json(),
+                    pin_salt,
+                    pin_hash,
+                    int(profile.active),
+                    profile.created_at.isoformat(),
+                    profile.updated_at.isoformat(),
+                ),
+            )
+        return profile
+
+    def get_staff_profile(
+        self,
+        project_id: str,
+        staff_id: str,
+    ) -> StaffProfile | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT payload_json FROM staff_profiles
+                WHERE project_id = ? AND id = ?
+                """,
+                (project_id, staff_id),
+            ).fetchone()
+        return None if row is None else StaffProfile.model_validate_json(row["payload_json"])
+
+    def list_staff_profiles(self, project_id: str) -> list[StaffProfile]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT payload_json FROM staff_profiles
+                WHERE project_id = ?
+                ORDER BY active DESC, normalized_name ASC
+                """,
+                (project_id,),
+            ).fetchall()
+        return [StaffProfile.model_validate_json(row["payload_json"]) for row in rows]
+
+    def update_staff_profile(self, profile: StaffProfile) -> StaffProfile | None:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE staff_profiles
+                SET normalized_name = ?, payload_json = ?, active = ?, updated_at = ?
+                WHERE project_id = ? AND id = ?
+                """,
+                (
+                    profile.normalized_name,
+                    profile.model_dump_json(),
+                    int(profile.active),
+                    profile.updated_at.isoformat(),
+                    profile.project_id,
+                    profile.id,
+                ),
+            )
+        return None if cursor.rowcount == 0 else profile
+
+    def update_staff_pin(
+        self,
+        project_id: str,
+        staff_id: str,
+        pin_salt: bytes,
+        pin_hash: bytes,
+    ) -> StaffProfile | None:
+        current = self.get_staff_profile(project_id, staff_id)
+        if current is None:
+            return None
+        updated = current.model_copy(update={"updated_at": _now()})
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE staff_profiles
+                SET pin_salt = ?, pin_hash = ?, payload_json = ?, updated_at = ?
+                WHERE project_id = ? AND id = ?
+                """,
+                (
+                    pin_salt,
+                    pin_hash,
+                    updated.model_dump_json(),
+                    updated.updated_at.isoformat(),
+                    project_id,
+                    staff_id,
+                ),
+            )
+        return None if cursor.rowcount == 0 else updated
+
+    def verify_staff_pin(
+        self,
+        project_id: str,
+        staff_id: str,
+        pin: str,
+    ) -> bool:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT pin_salt, pin_hash FROM staff_profiles
+                WHERE project_id = ? AND id = ? AND active = 1
+                """,
+                (project_id, staff_id),
+            ).fetchone()
+        if row is None:
+            return False
+        return verify_staff_pin(pin, row["pin_salt"], row["pin_hash"])
 
     def save_bill(
         self,

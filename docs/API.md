@@ -57,6 +57,21 @@ record always contains both baseline and intervention results.
 | POST | `/api/checklists/{token}/tasks/{task_id}/complete` | Confirm one authorized task |
 | GET | `/api/privacy` | Machine-readable storage and retention summary |
 
+## Staff game roster
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/avatars` | List the approved local 3D character catalog |
+| GET/POST | `/api/projects/{project_id}/staff` | List or create project-scoped staff profiles |
+| PUT | `/api/projects/{project_id}/staff/{staff_id}` | Update role, avatar, shift, authorization, or active state |
+| POST | `/api/projects/{project_id}/staff/{staff_id}/reset-pin` | Replace the hashed staff game join PIN |
+
+Staff names are unique within a project after whitespace and case
+normalization. Avatar IDs are restricted to bundled local models, zone and
+equipment authorization must reference the project's store snapshot, and PINs
+are stored only as salted scrypt hashes. Authentication fields are never
+returned by the API.
+
 ## Error contract
 
 Validation failures return `422`, missing resources return `404`, expired
