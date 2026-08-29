@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -66,7 +66,12 @@ class UtilityBillDraft(BaseModel):
 
     @model_validator(mode="after")
     def period_is_ordered(self):
-        if self.period_end < self.period_start:
+        try:
+            period_start = date.fromisoformat(self.period_start)
+            period_end = date.fromisoformat(self.period_end)
+        except ValueError as exc:
+            raise ValueError("bill period dates must use YYYY-MM-DD") from exc
+        if period_end < period_start:
             raise ValueError("period_end must be on or after period_start")
         return self
 

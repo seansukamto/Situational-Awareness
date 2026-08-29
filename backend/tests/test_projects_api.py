@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 
@@ -76,6 +77,7 @@ def test_uploaded_bill_requires_confirmation(tmp_path):
         bill = response.json()
         assert bill["status"] == "needs_confirmation"
         assert bill["raw_file_retained"] is False
+        assert bill["filename"] == "uploaded_utility_bill.json"
 
         confirmed = client.post(
             f"/api/projects/project_demo_sg_01/bills/{bill['id']}/confirm",
@@ -87,7 +89,8 @@ def test_uploaded_bill_requires_confirmation(tmp_path):
 
 
 def test_staff_checklist_is_scoped_and_completable(tmp_path):
-    app.state.repository = SQLiteRepository(tmp_path / "checklist.sqlite3")
+    repository = SQLiteRepository(tmp_path / "checklist.sqlite3")
+    app.state.repository = repository
     with TestClient(app) as client:
         client.post("/api/demo/bootstrap")
         response = client.post("/api/projects/project_demo_sg_01/checklists")
@@ -97,12 +100,21 @@ def test_staff_checklist_is_scoped_and_completable(tmp_path):
         assert all(task["equipment_id"] != "cold_storage" for task in checklist["tasks"])
 
         token = checklist["token"]
+        missing = client.post(f"/api/checklists/{token}/tasks/missing/complete")
+        assert missing.status_code == 404
         for task in checklist["tasks"]:
             completed = client.post(
                 f"/api/checklists/{token}/tasks/{task['id']}/complete"
             )
             assert completed.status_code == 200
         assert completed.json()["status"] == "completed"
+
+        saved = repository.get_checklist(token)
+        assert saved is not None
+        repository.update_checklist(
+            saved.model_copy(update={"expires_at": datetime.now(UTC) - timedelta(seconds=1)})
+        )
+        assert client.get(f"/api/checklists/{token}").status_code == 410
 
         privacy = client.get("/api/privacy")
         assert privacy.status_code == 200

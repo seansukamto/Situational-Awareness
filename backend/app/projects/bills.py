@@ -75,9 +75,13 @@ def parse_bill_bytes(filename: str, content: bytes) -> UtilityBillDraft:
     suffix = Path(filename).suffix.lower()
     if suffix == ".pdf":
         from pypdf import PdfReader
+        from pypdf.errors import PyPdfError
 
-        reader = PdfReader(io.BytesIO(content))
-        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        try:
+            reader = PdfReader(io.BytesIO(content))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        except PyPdfError as exc:
+            raise ValueError("The PDF utility bill could not be read.") from exc
         return _from_text(text, filename)
     decoded = content.decode("utf-8-sig", errors="replace")
     if suffix == ".json":

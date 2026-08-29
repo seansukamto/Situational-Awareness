@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class EquipmentState(StrEnum):
@@ -78,6 +78,17 @@ class Equipment(BaseModel):
     customer_facing: bool = False
     switchable_by_roles: set[AgentRole] = Field(default_factory=set)
 
+    @model_validator(mode="after")
+    def validate_power_map(self):
+        if self.state not in self.power_kw_by_state:
+            raise ValueError("equipment power map must include its current state")
+        if any(power < 0 for power in self.power_kw_by_state.values()):
+            raise ValueError("equipment power cannot be negative")
+        if self.criticality == Criticality.PROTECTED and EquipmentState.OFF in self.power_kw_by_state:
+            if self.power_kw_by_state[EquipmentState.OFF] != 0:
+                raise ValueError("protected equipment off-state power must be zero")
+        return self
+
     def power_kw(self) -> float:
         return self.power_kw_by_state[self.state]
 
@@ -119,15 +130,47 @@ class Store(BaseModel):
     id: str
     name: str
     timezone: str = "Asia/Singapore"
-    floor_area_m2: float
-    opening_minute: int
-    closing_minute: int
+    floor_area_m2: float = Field(gt=0)
+    opening_minute: int = Field(ge=0, lt=24 * 60)
+    closing_minute: int = Field(gt=0, le=24 * 60)
     zones: list[Zone]
     equipment: list[Equipment]
     agents: list[Agent]
     customers: list[Customer] = Field(default_factory=list)
-    tariff_sgd_per_kwh: float
-    grid_emission_factor_kg_per_kwh: float
+    tariff_sgd_per_kwh: float = Field(gt=0)
+    grid_emission_factor_kg_per_kwh: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_references(self):
+        if self.closing_minute <= self.opening_minute:
+            raise ValueError("closing_minute must be after opening_minute")
+        zone_ids = [zone.id for zone in self.zones]
+        equipment_ids = [equipment.id for equipment in self.equipment]
+        agent_ids = [agent.id for agent in self.agents]
+        customer_ids = [customer.id for customer in self.customers]
+        for label, identifiers in {
+            "zone": zone_ids,
+            "equipment": equipment_ids,
+            "agent": agent_ids,
+            "customer": customer_ids,
+        }.items():
+            if len(identifiers) != len(set(identifiers)):
+                raise ValueError(f"{label} ids must be unique")
+        known_zones = set(zone_ids)
+        known_equipment = set(equipment_ids)
+        if any(item.zone_id not in known_zones for item in self.equipment):
+            raise ValueError("every equipment item must reference a known zone")
+        if any(item.zone_id not in known_zones for item in self.agents):
+            raise ValueError("every staff agent must reference a known zone")
+        if any(item.zone_id not in known_zones | {"exit"} for item in self.customers):
+            raise ValueError("every customer agent must reference a known zone")
+        if any(
+            equipment_id not in known_equipment
+            for agent in self.agents
+            for equipment_id in agent.assigned_equipment_ids
+        ):
+            raise ValueError("staff assignments must reference known equipment")
+        return self
 
 
 class Intervention(BaseModel):
@@ -144,10 +187,19 @@ class Scenario(BaseModel):
     id: str
     label: str
     description: str
-    start_minute: int
-    end_minute: int
-    tick_minutes: int = 1
+    start_minute: int = Field(ge=0, lt=24 * 60)
+    end_minute: int = Field(gt=0, le=2 * 24 * 60)
+    tick_minutes: int = Field(default=1, gt=0, le=60)
     intervention: Intervention
+
+    @model_validator(mode="after")
+    def validate_timeline(self):
+        if self.end_minute <= self.start_minute:
+            raise ValueError("scenario end_minute must be after start_minute")
+        reminder = self.intervention.reminder_minute
+        if reminder is not None and not self.start_minute <= reminder <= self.end_minute:
+            raise ValueError("intervention reminder must occur inside the scenario window")
+        return self
 
 
 class ActionProposal(BaseModel):

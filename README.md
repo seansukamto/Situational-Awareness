@@ -10,6 +10,8 @@ non-critical shutdown tasks while the Game Master protects refrigeration,
 safety systems, customer service, and other operational constraints. Green
 Close is a scenario inside Situational Awareness, not the product name.
 
+Requires Python 3.11+ and Node.js 22 (recommended). No Docker service is needed.
+
 ## Architecture
 
 - `backend/`: FastAPI API and authoritative simulation engine.
@@ -60,6 +62,12 @@ Close is a scenario inside Situational Awareness, not the product name.
 
 ## Local development
 
+For a one-command dependency setup:
+
+```bash
+make setup
+```
+
 ### Backend
 
 ```bash
@@ -93,6 +101,9 @@ curl -X POST http://127.0.0.1:8000/api/demo/bootstrap
 
 Open `http://127.0.0.1:8000/docs` for the project, bill upload/confirmation,
 scenario settings, simulation, and impact-analysis endpoints.
+
+See the [architecture guide](docs/ARCHITECTURE.md) and [API reference](docs/API.md)
+for implementation and extension details.
 
 ## Verification
 

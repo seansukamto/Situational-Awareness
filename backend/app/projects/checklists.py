@@ -47,7 +47,9 @@ def create_checklist(project: Project) -> ChecklistSession:
 def complete_task(checklist: ChecklistSession, task_id: str) -> ChecklistSession:
     completed_at = datetime.now(UTC)
     tasks = [
-        task.model_copy(update={"completed_at": completed_at}) if task.id == task_id else task
+        task.model_copy(update={"completed_at": completed_at})
+        if task.id == task_id and task.completed_at is None
+        else task
         for task in checklist.tasks
     ]
     if not any(task.id == task_id for task in checklist.tasks):
