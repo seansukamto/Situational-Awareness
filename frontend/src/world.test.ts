@@ -64,4 +64,13 @@ describe("buildWorld", () => {
     expect(world.equipmentStates.lights).toBe("on");
     expect(world.activeCustomers.customer).toBe(true);
   });
+
+  it("lets a customer animate to the exit before removing the character", () => {
+    const exiting = buildWorld(store, events, 3);
+    expect(exiting.customerPositions.customer).toEqual({ x: -6, z: -3 });
+    expect(exiting.activeCustomers.customer).toBe(true);
+
+    const exited = buildWorld(store, events, 4);
+    expect(exited.activeCustomers.customer).toBe(false);
+  });
 });

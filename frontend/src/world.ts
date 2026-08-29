@@ -28,6 +28,7 @@ export function buildWorld(store: Store, events: SimulationEvent[], step: number
     ),
     customerCount: store.customers.filter((customer) => customer.active).length,
   };
+  const awaitingExitCommit = new Set<string>();
 
   for (const event of events.slice(0, step)) {
     const nextPosition = asPosition(event.data.to);
@@ -39,9 +40,13 @@ export function buildWorld(store: Store, events: SimulationEvent[], step: number
     }
     if (event.type === "customer_exited" && event.agent_id) {
       if (nextPosition) world.customerPositions[event.agent_id] = nextPosition;
-      world.activeCustomers[event.agent_id] = false;
+      awaitingExitCommit.add(event.agent_id);
     }
     if (event.type === "customer_count_changed" && typeof event.data.customer_count === "number") {
+      for (const customerId of awaitingExitCommit) {
+        world.activeCustomers[customerId] = false;
+      }
+      awaitingExitCommit.clear();
       world.customerCount = event.data.customer_count;
     }
     if (event.type === "equipment_state_changed" && event.target_id) {

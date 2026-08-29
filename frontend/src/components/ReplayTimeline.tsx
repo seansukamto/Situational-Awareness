@@ -27,7 +27,7 @@ export function ReplayTimeline({
       setPlaying(false);
       return;
     }
-    const timer = window.setTimeout(() => setStep(step + 1), 620);
+    const timer = window.setTimeout(() => setStep(step + 1), 900);
     return () => window.clearTimeout(timer);
   }, [events.length, playing, setPlaying, setStep, step]);
 

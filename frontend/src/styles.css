@@ -96,18 +96,30 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 
 .simulation-layout { display: grid; grid-template-columns: minmax(0, 1fr) 292px; border: 1px solid #cfd7d1; border-radius: 13px; overflow: hidden; background: #fff; box-shadow: 0 18px 42px rgba(24, 39, 31, .08); }
 .scene-column { min-width: 0; background: var(--night); }
-.scene-wrap { position: relative; height: clamp(480px, 58vw, 650px); overflow: hidden; background: var(--night); }
+.scene-wrap { position: relative; height: clamp(480px, 58vw, 650px); overflow: hidden; isolation: isolate; background: radial-gradient(circle at 58% 34%, #1b3126 0, #0b1510 62%, #07100c 100%); }
 .scene-loading { display: grid; height: clamp(480px, 58vw, 650px); place-items: center; color: #71867b; background: var(--night); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .scene-wrap canvas { display: block; }
-.scene-zone-label { display: block; padding: 3px 6px; border: 1px solid rgba(177, 214, 195, .22); border-radius: 4px; color: #95aa9f; background: rgba(12, 21, 17, .84); font: 8px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; text-transform: uppercase; letter-spacing: .04em; pointer-events: none; }
-.scene-legend { position: absolute; top: 16px; left: 16px; display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 8px 10px; border: 1px solid rgba(198, 224, 210, .12); border-radius: 6px; color: #899c92; background: rgba(8, 15, 12, .74); backdrop-filter: blur(10px); font-size: 9px; }
+.scene-vignette { position: absolute; z-index: 1; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(3,9,6,.18), transparent 24%, transparent 70%, rgba(2,7,4,.48)), radial-gradient(circle at 50% 46%, transparent 42%, rgba(1,7,4,.28) 100%); }
+.scene-zone-label { display: block; padding: 4px 7px; border: 1px solid rgba(177, 214, 195, .24); border-radius: 4px; color: #a9bdb2; background: rgba(8, 16, 12, .88); box-shadow: 0 4px 12px rgba(0,0,0,.18); font: 700 7px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; text-transform: uppercase; letter-spacing: .08em; pointer-events: none; }
+.storefront-sign { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid rgba(126,238,174,.28); border-radius: 5px; color: #e4f6eb; background: rgba(8,18,13,.9); box-shadow: 0 7px 20px rgba(0,0,0,.32); white-space: nowrap; pointer-events: none; }
+.storefront-sign b { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 4px; color: #0a1710; background: #79efad; font: 800 8px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.storefront-sign span { font: 720 8px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+.entry-sign { display: flex; align-items: center; gap: 6px; color: #b9cfc3; font: 700 6px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; white-space: nowrap; pointer-events: none; }
+.entry-sign i { width: 5px; height: 5px; border-radius: 50%; background: #76edaa; box-shadow: 0 0 8px #76edaa; }
+.equipment-flag { display: block; padding: 4px 7px; border: 1px solid rgba(101,185,255,.34); border-radius: 99px; color: #a9d7ff; background: rgba(8,17,24,.88); font: 700 6px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; pointer-events: none; }
+.scene-brandplate { position: absolute; z-index: 2; top: 16px; right: 16px; min-width: 172px; padding: 11px 12px; border: 1px solid rgba(190,225,206,.14); border-radius: 7px; color: #dcece3; background: rgba(6,14,10,.72); box-shadow: 0 8px 22px rgba(0,0,0,.18); backdrop-filter: blur(12px); pointer-events: none; }
+.scene-brandplate span, .scene-brandplate strong { display: block; }
+.scene-brandplate span { color: #6f887a; font: 700 7px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.scene-brandplate span i { display: inline-block; width: 5px; height: 5px; margin-right: 5px; border-radius: 50%; background: #72efa9; box-shadow: 0 0 8px rgba(114,239,169,.8); }
+.scene-brandplate strong { margin-top: 5px; font-size: 9px; font-weight: 650; }
+.scene-legend { position: absolute; z-index: 2; top: 16px; left: 16px; display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 9px 11px; border: 1px solid rgba(198, 224, 210, .14); border-radius: 7px; color: #94a89d; background: rgba(6, 14, 10, .72); box-shadow: 0 8px 22px rgba(0,0,0,.16); backdrop-filter: blur(12px); font-size: 9px; pointer-events: none; }
 .scene-legend span { display: flex; align-items: center; gap: 5px; }
 .scene-legend i { width: 6px; height: 6px; border-radius: 50%; }
 .legend-staff { background: var(--green-bright); }
 .legend-customer { background: #75a7ff; }
 .legend-protected { background: #5aa7ff; box-shadow: 0 0 5px #5aa7ff; }
-.scene-selection { position: absolute; right: 16px; bottom: 16px; max-width: 260px; padding: 9px 12px; border: 1px solid rgba(114, 239, 169, .24); border-radius: 6px; color: #cce8d8; background: rgba(10, 20, 15, .86); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: capitalize; }
-.scene-attribution { position: absolute; left: 16px; bottom: 14px; color: #566b60; font: 7px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.scene-selection { position: absolute; z-index: 2; right: 16px; bottom: 16px; max-width: 260px; padding: 9px 12px; border: 1px solid rgba(114, 239, 169, .24); border-radius: 6px; color: #cce8d8; background: rgba(10, 20, 15, .86); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: capitalize; }
+.scene-attribution { position: absolute; z-index: 2; left: 16px; bottom: 14px; color: #566b60; font: 7px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .scene-attribution a { color: #718c7e; text-decoration: none; }
 .scene-attribution a:hover { color: var(--green-bright); }
 
@@ -340,6 +352,7 @@ body:has(.checklist-shell) { background: #0b1410; }
   .live-facts { grid-template-columns: repeat(3, 1fr); font-size: 9px; }
   .scene-wrap { height: 430px; }
   .scene-legend { right: 10px; left: 10px; }
+  .scene-brandplate { top: 58px; right: 10px; }
   .replay-toolbar { grid-template-columns: 36px 72px minmax(80px, 1fr); padding-inline: 12px; }
   .reset-button { display: none; }
   .rule-stack { grid-template-columns: 1fr; }
