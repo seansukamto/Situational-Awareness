@@ -43,6 +43,8 @@ Requires Python 3.11+ and Node.js 22 (recommended). No Docker service is needed.
 - React Three Fiber reconstructs the world from the append-only event ledger.
   Replay controls never mutate the simulation; they project state at a chosen
   event sequence number.
+- Animated character models are loaded locally from `frontend/public/models`.
+  See the bundled [model attribution](frontend/public/models/ATTRIBUTION.md).
 - Green Close is currently the first intervention. The scenario switch is
   intentionally separate from the Situational Awareness product identity.
 

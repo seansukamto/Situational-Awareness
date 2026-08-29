@@ -107,6 +107,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 .legend-customer { background: #75a7ff; }
 .legend-protected { background: #5aa7ff; box-shadow: 0 0 5px #5aa7ff; }
 .scene-selection { position: absolute; right: 16px; bottom: 16px; max-width: 260px; padding: 9px 12px; border: 1px solid rgba(114, 239, 169, .24); border-radius: 6px; color: #cce8d8; background: rgba(10, 20, 15, .86); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: capitalize; }
+.scene-attribution { position: absolute; left: 16px; bottom: 14px; color: #566b60; font: 7px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.scene-attribution a { color: #718c7e; text-decoration: none; }
+.scene-attribution a:hover { color: var(--green-bright); }
 
 .replay-panel { border-top: 1px solid rgba(202, 229, 215, .12); color: #d4e2da; background: #0a120e; }
 .replay-toolbar { min-height: 70px; display: grid; grid-template-columns: 36px 88px minmax(130px, 1fr) 46px; align-items: center; gap: 12px; padding: 0 18px; }

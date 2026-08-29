@@ -5,6 +5,16 @@ export default defineConfig({
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 950,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "gltf-runtime": [
+            "three/examples/jsm/loaders/GLTFLoader.js",
+            "three/examples/jsm/utils/SkeletonUtils.js",
+          ],
+        },
+      },
+    },
   },
   server: {
     host: "127.0.0.1",

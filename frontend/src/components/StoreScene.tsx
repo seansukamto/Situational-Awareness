@@ -1,7 +1,8 @@
-import { Html, OrbitControls } from "@react-three/drei";
+import { Html, OrbitControls, useAnimations, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 
 import type {
   CustomerAgent,
@@ -15,6 +16,92 @@ import type {
 
 type Selection = { kind: "staff" | "customer" | "equipment"; id: string } | null;
 
+const MODEL_BASE = `${import.meta.env.BASE_URL}models/`;
+const MODEL_URLS = {
+  manager: `${MODEL_BASE}shift-manager.glb`,
+  associate: `${MODEL_BASE}associate.glb`,
+  customer_01: `${MODEL_BASE}purposeful-shopper.glb`,
+  customer_02: `${MODEL_BASE}display-browser.glb`,
+  customer_03: `${MODEL_BASE}value-seeker.glb`,
+  customer_04: `${MODEL_BASE}late-browser.glb`,
+} as const;
+
+function AnimatedCharacter({
+  url,
+  position,
+  scale,
+  accent,
+  selected,
+  onSelect,
+}: {
+  url: string;
+  position: Position;
+  scale: number;
+  accent: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const movementRoot = useRef<THREE.Group>(null);
+  const animationRoot = useRef<THREE.Group>(null);
+  const moving = useRef(false);
+  const target = useMemo(() => new THREE.Vector3(position.x, 0, position.z), [position]);
+  const { scene, animations } = useGLTF(url);
+  const character = useMemo(() => {
+    const instance = clone(scene);
+    instance.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    });
+    return instance;
+  }, [scene]);
+  const { actions } = useAnimations(animations, animationRoot);
+
+  useEffect(() => {
+    const idle = actions["Armature|Idle"];
+    idle?.reset().fadeIn(0.2).play();
+    return () => {
+      idle?.fadeOut(0.1);
+    };
+  }, [actions]);
+
+  useFrame((_, delta) => {
+    const root = movementRoot.current;
+    if (!root) return;
+    const isMoving = root.position.distanceTo(target) > 0.035;
+    if (isMoving) {
+      root.lookAt(target.x, 0, target.z);
+      root.position.lerp(target, 1 - Math.exp(-5.5 * delta));
+    }
+    if (isMoving === moving.current) return;
+    const previous = actions[moving.current ? "Armature|Walk" : "Armature|Idle"];
+    const next = actions[isMoving ? "Armature|Walk" : "Armature|Idle"];
+    previous?.fadeOut(0.18);
+    next?.reset().fadeIn(0.18).play();
+    moving.current = isMoving;
+  });
+
+  return (
+    <group
+      ref={movementRoot}
+      position={[position.x, 0, position.z]}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect();
+      }}
+    >
+      <group ref={animationRoot} scale={scale} rotation={[0, Math.PI, 0]}>
+        <primitive object={character} />
+      </group>
+      <mesh position={[0, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.3, selected ? 0.5 : 0.37, 28]} />
+        <meshBasicMaterial color={accent} transparent opacity={selected ? 0.95 : 0.68} />
+      </mesh>
+    </group>
+  );
+}
+
 function StoreAgent({
   agent,
   position,
@@ -26,32 +113,16 @@ function StoreAgent({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const ref = useRef<THREE.Group>(null);
-  const target = useMemo(() => new THREE.Vector3(position.x, 0, position.z), [position]);
-  useFrame(() => ref.current?.position.lerp(target, 0.09));
   const manager = agent.role === "manager";
   return (
-    <group ref={ref} position={[position.x, 0, position.z]} onClick={(event) => {
-      event.stopPropagation();
-      onSelect();
-    }}>
-      <mesh position={[0, 0.72, 0]} castShadow>
-        <capsuleGeometry args={[0.2, 0.48, 6, 12]} />
-        <meshStandardMaterial
-          color={manager ? "#ffd36b" : "#79f2b5"}
-          emissive={selected ? "#2d8b63" : "#000000"}
-          emissiveIntensity={selected ? 0.8 : 0}
-        />
-      </mesh>
-      <mesh position={[0, 1.23, 0]} castShadow>
-        <sphereGeometry args={[0.22, 16, 16]} />
-        <meshStandardMaterial color="#f2c7a5" />
-      </mesh>
-      <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.28, selected ? 0.48 : 0.34, 24]} />
-        <meshBasicMaterial color={manager ? "#ffd36b" : "#79f2b5"} transparent opacity={0.75} />
-      </mesh>
-    </group>
+    <AnimatedCharacter
+      url={manager ? MODEL_URLS.manager : MODEL_URLS.associate}
+      position={position}
+      scale={manager ? 0.76 : 0.74}
+      accent={manager ? "#ffd36b" : "#79f2b5"}
+      selected={selected}
+      onSelect={onSelect}
+    />
   );
 }
 
@@ -66,32 +137,20 @@ function CustomerToken({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const ref = useRef<THREE.Group>(null);
-  const target = useMemo(() => new THREE.Vector3(position.x, 0, position.z), [position]);
-  useFrame(() => ref.current?.position.lerp(target, 0.075));
   const colours = {
     browser: "#75a7ff",
     mission_shopper: "#c68cff",
     value_seeker: "#ff8fa3",
   };
   return (
-    <group ref={ref} position={[position.x, 0, position.z]} onClick={(event) => {
-      event.stopPropagation();
-      onSelect();
-    }}>
-      <mesh position={[0, 0.55, 0]} castShadow>
-        <capsuleGeometry args={[0.16, 0.34, 5, 10]} />
-        <meshStandardMaterial
-          color={colours[customer.segment]}
-          emissive={selected ? colours[customer.segment] : "#000000"}
-          emissiveIntensity={selected ? 0.35 : 0}
-        />
-      </mesh>
-      <mesh position={[0, 0.96, 0]} castShadow>
-        <sphereGeometry args={[0.18, 14, 14]} />
-        <meshStandardMaterial color="#d8b69d" />
-      </mesh>
-    </group>
+    <AnimatedCharacter
+      url={MODEL_URLS[customer.id as keyof typeof MODEL_URLS] ?? MODEL_URLS.customer_01}
+      position={position}
+      scale={0.68}
+      accent={colours[customer.segment]}
+      selected={selected}
+      onSelect={onSelect}
+    />
   );
 }
 
@@ -254,9 +313,15 @@ export function StoreScene({ store, world }: { store: Store; world: WorldState }
         <span><i className="legend-customer" /> Consumer agent</span>
         <span><i className="legend-protected" /> Protected load</span>
       </div>
+      <div className="scene-attribution">
+        Characters by <a href="https://poly.pizza/u/J-Toastie" target="_blank" rel="noreferrer">J-Toastie</a>
+        {" · "}<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a>
+      </div>
       {selectionLabel(selection, store, world) && (
         <div className="scene-selection">{selectionLabel(selection, store, world)}</div>
       )}
     </div>
   );
 }
+
+Object.values(MODEL_URLS).forEach((url) => useGLTF.preload(url));
