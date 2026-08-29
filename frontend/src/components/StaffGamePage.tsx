@@ -35,6 +35,12 @@ function taskImpact(task: TaskInstance): string {
 }
 
 
+function taskPointsAvailable(task: TaskInstance): number {
+  const onTimeBonus = Math.round(task.base_points * 0.1);
+  return Math.min(task.maximum_points, task.base_points + onTimeBonus);
+}
+
+
 function normalizedName(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
@@ -48,6 +54,9 @@ export function StaffGamePage({ joinToken }: { joinToken: string }) {
   const joinSummary = useQuery({
     queryKey: ["game-join", joinToken],
     queryFn: () => inspectGameJoin(joinToken),
+    refetchInterval: (query) => (
+      session && query.state.data?.status === "active" ? 4000 : false
+    ),
     retry: false,
   });
   const matchedStaff = useMemo(() => joinSummary.data?.staff.find(
@@ -65,14 +74,14 @@ export function StaffGamePage({ joinToken }: { joinToken: string }) {
     queryKey: ["staff-game-tasks", session?.game_day.id, session?.staff.id],
     queryFn: () => listGameTasks(session!.session_token),
     enabled: Boolean(session),
-    refetchInterval: session?.game_day.status === "active" ? 4000 : false,
+    refetchInterval: joinSummary.data?.status === "active" ? 4000 : false,
     retry: false,
   });
   const leaderboard = useQuery({
     queryKey: ["staff-game-leaderboard", session?.game_day.id],
     queryFn: () => fetchStaffLeaderboard(session!.session_token),
     enabled: Boolean(session),
-    refetchInterval: session?.game_day.status === "active" ? 4000 : false,
+    refetchInterval: joinSummary.data?.status === "active" ? 4000 : false,
     retry: false,
   });
   const refresh = () => {
@@ -123,7 +132,7 @@ export function StaffGamePage({ joinToken }: { joinToken: string }) {
       </header>
       <section className="player-score-hero">
         <div className={`player-avatar avatar-${session.staff.avatar_id}`}>{session.staff.display_name.slice(0, 1).toUpperCase()}<small>3D</small></div>
-        <div><span>Playing as</span><h1>{session.staff.display_name}</h1><p>{session.staff.role.replaceAll("_", " ")} · {session.game_day.status} session</p></div>
+        <div><span>Playing as</span><h1>{session.staff.display_name}</h1><p>{session.staff.role.replaceAll("_", " ")} · {joinSummary.data.status} session</p></div>
         <div className="player-score"><span>Individual score</span><strong>{myLeaderboard?.points ?? 0}</strong><small>{myLeaderboard?.tasks_completed ?? 0} tasks complete</small></div>
       </section>
 
@@ -131,19 +140,23 @@ export function StaffGamePage({ joinToken }: { joinToken: string }) {
         <p className="staff-game-action-error">{claim.error?.message ?? release.error?.message ?? complete.error?.message ?? tasks.error?.message}</p>
       )}
 
+      {joinSummary.data.status === "completed" && (
+        <p className="staff-game-day-complete">Today’s game is complete. Your score and completed tasks are now read-only.</p>
+      )}
+
       <section className="staff-task-section">
         <div className="staff-task-heading"><div><span>Task market</span><h2>Available to snatch</h2></div><b>{available.length}</b></div>
         <div className="staff-task-list">
-          {available.map((task) => <article className={`staff-task-card available ${task.game_master_recommended ? "recommended" : ""}`} key={task.id}>{task.game_master_recommended && <aside><strong>✦ Game Master pick</strong><span>{task.recommendation_reason}</span></aside>}<div><span>{task.domain}</span><strong>{task.base_points} pts</strong></div><h3>{task.label}</h3><p>{task.description}</p><p className="task-sustainability-link"><strong>Why it matters</strong>{task.sustainability_mechanism || "The sustainability mechanism has not been specified yet."}</p><footer><small>{task.zone_id?.replaceAll("_", " ") ?? "Store-wide"} · {taskImpact(task)}</small><button type="button" disabled={claim.isPending} onClick={() => claim.mutate(task.id)}>Snatch task</button></footer></article>)}
-          {!available.length && <p className="staff-game-empty">No eligible tasks are available right now. Claimed tasks stay reserved for their player.</p>}
+          {available.map((task) => <article className={`staff-task-card available ${task.game_master_recommended ? "recommended" : ""}`} key={task.id}>{task.game_master_recommended && <aside><strong>✦ Game Master pick</strong><span>{task.recommendation_reason}</span></aside>}<div><span>{task.domain}</span><strong>up to {taskPointsAvailable(task)} pts</strong></div><h3>{task.label}</h3><p>{task.description}</p><p className="task-sustainability-link"><strong>Why it matters</strong>{task.sustainability_mechanism || "The sustainability mechanism has not been specified yet."}</p><footer><small>{task.zone_id?.replaceAll("_", " ") ?? "Store-wide"} · {taskImpact(task)} · {task.base_points} base + on-time bonus</small><button type="button" disabled={claim.isPending} onClick={() => claim.mutate(task.id)}>Snatch task</button></footer></article>)}
+          {!available.length && <p className="staff-game-empty">{joinSummary.data.status === "completed" ? "The task market closed with today’s game." : "No eligible tasks are available right now. Claimed tasks stay reserved for their player."}</p>}
         </div>
       </section>
 
       <section className="staff-task-section claimed-section">
         <div className="staff-task-heading"><div><span>In progress</span><h2>My claimed tasks</h2></div><b>{mine.length}</b></div>
         <div className="staff-task-list">
-          {mine.map((task) => <article className="staff-task-card claimed" key={task.id}><div><span>Reserved for you</span><strong>{task.base_points} pts</strong></div><h3>{task.label}</h3><p>{task.description}</p><p className="task-sustainability-link"><strong>Why it matters</strong>{task.sustainability_mechanism || "The sustainability mechanism has not been specified yet."}</p><footer><button className="release-task" type="button" disabled={release.isPending || complete.isPending} onClick={() => release.mutate(task.id)}>Release</button><button type="button" disabled={complete.isPending} onClick={() => complete.mutate(task.id)}>Complete + points</button></footer></article>)}
-          {!mine.length && <p className="staff-game-empty">Snatch a task from the market to begin.</p>}
+          {mine.map((task) => <article className="staff-task-card claimed" key={task.id}><div><span>Reserved for you</span><strong>up to {taskPointsAvailable(task)} pts</strong></div><h3>{task.label}</h3><p>{task.description}</p><p className="task-sustainability-link"><strong>Why it matters</strong>{task.sustainability_mechanism || "The sustainability mechanism has not been specified yet."}</p><footer><small>{task.base_points} base + on-time bonus</small><button className="release-task" type="button" disabled={release.isPending || complete.isPending} onClick={() => release.mutate(task.id)}>Release</button><button type="button" disabled={complete.isPending} onClick={() => complete.mutate(task.id)}>Complete + points</button></footer></article>)}
+          {!mine.length && <p className="staff-game-empty">{joinSummary.data.status === "completed" ? "No unfinished tasks remain on your final record." : "Snatch a task from the market to begin."}</p>}
         </div>
       </section>
 

@@ -69,6 +69,10 @@ export OLLAMA_BASE_URL="http://127.0.0.1:11434"
 export OLLAMA_MODEL="your-local-model"
 ```
 
+For local development, the backend automatically loads these values from the
+repository-root `.env` file. The file is ignored by Git; copy `.env.example`
+and keep credentials out of source control.
+
 No key is accepted by or returned to the browser. Missing credentials, network
 timeouts, invalid structured output, and exhausted call/token/cost budgets emit
 auditable failure/fallback events and continue with deterministic behaviour.

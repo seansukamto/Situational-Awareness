@@ -214,6 +214,8 @@ describe("staff game flows", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enter the game" }));
 
     expect(await screen.findByRole("heading", { name: "Switch off unused display lights" })).toBeVisible();
+    expect(screen.getByText("up to 22 pts")).toBeVisible();
+    expect(screen.getByText(/20 base \+ on-time bonus/)).toBeVisible();
     expect(screen.getByText("✦ Game Master pick")).toBeVisible();
     expect(screen.getByText("Matches your successful energy challenge history.")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Snatch task" }));

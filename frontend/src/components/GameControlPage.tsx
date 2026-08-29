@@ -120,7 +120,7 @@ export function GameControlPage({ project }: { project: Project }) {
         <article className="task-pool-card">
           <div className="game-card-heading"><div><span>02 · Challenge pool</span><h2>Available task templates</h2></div><button type="button" onClick={() => setShowTaskForm(true)}>＋ New task</button></div>
           <div className="task-template-list">
-            {(templates.data ?? []).map((template) => <div key={template.id}><span>{template.domain}</span><p><strong>{template.label}</strong><small>{template.zone_id ?? "Store-wide"} · {template.base_points} pts · {template.allowed_roles.map(roleLabel).join(", ")}</small><em>{template.sustainability_mechanism || "Sustainability mechanism not specified"}</em></p><i>{template.estimated_impact_value == null ? "Impact not measured" : `Estimated · ${template.estimated_impact_value} ${template.estimated_impact_unit}`}</i></div>)}
+            {(templates.data ?? []).map((template) => <div key={template.id}><span>{template.domain}</span><p><strong>{template.label}</strong><small>{template.zone_id ?? "Store-wide"} · {template.base_points} base pts · {template.allowed_roles.map(roleLabel).join(", ")}</small><em>{template.sustainability_mechanism || "Sustainability mechanism not specified"}</em></p><i>{template.estimated_impact_value == null ? "Impact not measured" : `Estimated · ${template.estimated_impact_value} ${template.estimated_impact_unit}`}</i></div>)}
             {!templates.isLoading && !templates.data?.length && <p className="game-empty-copy">Create at least one safe challenge before starting the game.</p>}
           </div>
         </article>

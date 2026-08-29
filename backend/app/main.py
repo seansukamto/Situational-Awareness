@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 from .agents.api import router as agents_router
@@ -13,6 +14,9 @@ from .simulation import GameMaster, build_demo_store, get_scenario
 from .simulation.explain import explain_event
 from .simulation.models import EventExplanation, ScenarioComparison, SimulationRun, Store
 from .simulation.scenarios import list_scenarios
+
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 
 app = FastAPI(

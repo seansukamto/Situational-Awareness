@@ -265,6 +265,35 @@ def test_end_of_day_analysis_versions_and_applies_a_bounded_policy(tmp_path):
         assert "successful energy challenge history" in personalized["recommendation_reason"]
 
 
+def test_completed_game_day_is_read_only_for_staff(tmp_path):
+    repository = SQLiteRepository(tmp_path / "completed-day-read-only.sqlite3")
+    app.state.repository = repository
+
+    with TestClient(app) as client:
+        project_id = client.post("/api/demo/bootstrap").json()["project"]["id"]
+        repository.reset_demo_game_content(project_id)
+        staff = create_staff(client, project_id, "Ava Lim")
+        create_template(client, project_id)
+        day = create_started_day(client, project_id)
+        headers = join_headers(client, day, staff)
+        task = client.get("/api/game/tasks", headers=headers).json()[0]
+
+        assert client.post(
+            f"/api/game/tasks/{task['id']}/claim", headers=headers
+        ).status_code == 200
+        assert client.post(
+            f"/api/projects/{project_id}/game-days/{day['id']}/close"
+        ).status_code == 200
+
+        assert client.get("/api/game/tasks", headers=headers).json() == []
+        assert client.post(
+            f"/api/game/tasks/{task['id']}/release", headers=headers
+        ).status_code == 409
+        assert client.post(
+            f"/api/game/tasks/{task['id']}/complete", headers=headers
+        ).status_code == 409
+
+
 def test_task_claim_is_atomic_and_only_one_staff_wins(tmp_path):
     repository = SQLiteRepository(tmp_path / "atomic-claim.sqlite3")
     app.state.repository = repository

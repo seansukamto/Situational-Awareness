@@ -708,10 +708,17 @@ def list_game_tasks(
     now = datetime.now(UTC)
     visible: list[TaskInstance] = []
     for task in context.repo.list_task_instances(context.game_day.id):
-        if task.claimed_by_staff_id == context.staff.id:
+        if (
+            task.claimed_by_staff_id == context.staff.id
+            and (
+                context.game_day.status == GameDayStatus.ACTIVE
+                or task.status == TaskStatus.COMPLETED
+            )
+        ):
             visible.append(task)
         elif (
-            task.status == TaskStatus.AVAILABLE
+            context.game_day.status == GameDayStatus.ACTIVE
+            and task.status == TaskStatus.AVAILABLE
             and staff_can_take_task(context, task)
             and task_is_inside_window(context, task, now)
         ):
@@ -826,6 +833,8 @@ def release_game_task(
     task_id: str,
     context: GameContext = Depends(require_game_context),
 ) -> TaskInstance:
+    if context.game_day.status != GameDayStatus.ACTIVE:
+        raise HTTPException(status_code=409, detail="Game day is not active")
     try:
         return context.repo.release_task_instance(
             context.game_day.id,
@@ -842,6 +851,8 @@ def complete_game_task(
     task_id: str,
     context: GameContext = Depends(require_game_context),
 ) -> TaskInstance:
+    if context.game_day.status != GameDayStatus.ACTIVE:
+        raise HTTPException(status_code=409, detail="Game day is not active")
     task = require_staff_task(context, task_id)
     now = datetime.now(UTC)
     score = score_completed_task(

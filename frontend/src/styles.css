@@ -245,6 +245,7 @@
 .player-score small { color: #b8cec0; }
 .staff-game-action-error { max-width: 900px; margin: 18px auto 0; padding: 12px 16px; border-radius: 10px; color: #8d2b2b; background: #fdecec; }
 .staff-task-section, .staff-leaderboard-section, .staff-completed-strip { max-width: 900px; margin: 30px auto 0; padding: 0 18px; }
+.staff-game-day-complete { max-width: 864px; margin: 24px auto 0; padding: 13px 16px; border: 1px solid #acd2b9; border-radius: 12px; color: #235d3d; background: #eaf6ee; font-weight: 750; }
 .staff-task-heading { display: flex; justify-content: space-between; align-items: end; margin-bottom: 12px; }
 .staff-task-heading span { color: #658073; font-size: .7rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
 .staff-task-heading h2 { margin: 4px 0 0; font-size: 1.3rem; }
