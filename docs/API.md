@@ -14,6 +14,17 @@ service is running.
 | GET | `/api/simulations/compare` | Matched baseline/intervention comparison |
 | GET | `/api/simulations/explanations` | Event-sequence-grounded explanations |
 
+## Agent intelligence
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/ai/status` | List deterministic/OpenAI/Ollama availability and model names without credentials |
+| POST | `/api/ai/test` | Request one minimal structured proposal from the selected configured provider |
+
+`POST /api/ai/test` returns a safe non-success response when an optional
+provider is missing or unavailable. It never returns provider credentials or a
+raw exception containing secret configuration.
+
 ## Projects, bills, and impact
 
 | Method | Path | Purpose |
@@ -22,11 +33,20 @@ service is running.
 | GET/POST | `/api/projects` | List or create projects |
 | GET | `/api/projects/{project_id}` | Read a project |
 | PUT | `/api/projects/{project_id}/settings` | Update uncertainty inputs |
+| PUT | `/api/projects/{project_id}/agent-settings` | Save default mode and provider budgets |
 | GET | `/api/projects/{project_id}/bills` | List extracted bills |
 | POST | `/api/projects/{project_id}/bills/upload` | Parse a bill without retaining the raw file |
 | POST | `/api/projects/{project_id}/bills/{bill_id}/confirm` | Confirm or correct extracted fields |
 | POST | `/api/projects/{project_id}/analysis` | Run a Monte Carlo impact analysis |
 | GET | `/api/projects/{project_id}/analyses/{analysis_id}/report.md` | Download a grounded decision brief |
+| POST | `/api/projects/{project_id}/runs` | Create one persisted paired baseline/intervention run |
+| GET | `/api/projects/{project_id}/runs` | List project-isolated run history newest first |
+| GET | `/api/projects/{project_id}/runs/{run_id}` | Read immutable snapshots, results, agent audit, and replay logs |
+
+Run creation accepts `seed`, `sample_count`, `mode`, `model`, maximum calls,
+calls per agent, timeout, concurrency, token budget, and estimated USD cost cap.
+The requested model must match the backend-approved configured model. A single
+record always contains both baseline and intervention results.
 
 ## Staff handoff and privacy
 

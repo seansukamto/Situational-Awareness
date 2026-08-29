@@ -48,6 +48,33 @@ Requires Python 3.11+ and Node.js 22 (recommended). No Docker service is needed.
 - Green Close is currently the first intervention. The scenario switch is
   intentionally separate from the Situational Awareness product identity.
 
+## Hybrid agent intelligence
+
+Every staff and consumer decision uses the same provider contract. The default
+`DeterministicAgentProvider` needs no credentials; optional
+`OpenAIAgentProvider` and `OllamaAgentProvider` implementations may propose a
+strictly typed public action and rationale. The Game Master still validates and
+applies every state change, and all energy, cost, emissions, labour, and profit
+calculations remain deterministic code.
+
+Configure an optional provider only on the backend:
+
+```bash
+# Cloud mode (official OpenAI SDK and Responses API)
+export OPENAI_API_KEY="..."
+export OPENAI_MODEL="your-approved-model"
+
+# Or local Ollama-compatible mode
+export OLLAMA_BASE_URL="http://127.0.0.1:11434"
+export OLLAMA_MODEL="your-local-model"
+```
+
+No key is accepted by or returned to the browser. Missing credentials, network
+timeouts, invalid structured output, and exhausted call/token/cost budgets emit
+auditable failure/fallback events and continue with deterministic behaviour.
+OpenAI cost is an estimate only and remains zero unless the optional per-token
+rates in `.env.example` are configured.
+
 ## Manager and staff workflow
 
 - Managers can upload a bill, review every extracted field, change scenario
@@ -104,7 +131,8 @@ curl -X POST http://127.0.0.1:8000/api/demo/bootstrap
 ```
 
 Open `http://127.0.0.1:8000/docs` for the project, bill upload/confirmation,
-scenario settings, simulation, and impact-analysis endpoints.
+scenario settings, provider status/test, persisted simulation, and
+impact-analysis endpoints.
 
 See the [architecture guide](docs/ARCHITECTURE.md),
 [agent-design reference](docs/AGENT_DESIGN.md), and [API reference](docs/API.md)

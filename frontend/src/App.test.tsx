@@ -6,7 +6,29 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
-import type { DemoBundle, PersistedSimulationRun, SimulationRunSummary } from "./types";
+import type { AIStatus, DemoBundle, PersistedSimulationRun, SimulationRunSummary } from "./types";
+
+const agentSettings = {
+  mode: "deterministic" as const,
+  model: null,
+  max_calls: 12,
+  max_calls_per_agent: 3,
+  timeout_seconds: 5,
+  max_concurrency: 1,
+  token_budget: 6000,
+  cost_budget_usd: 0.25,
+};
+
+const aiStatus: AIStatus = {
+  selected_mode: "deterministic",
+  prompt_template_version: "test-prompt-v1",
+  credentials_exposed: false,
+  modes: [
+    { mode: "deterministic", provider: "deterministic", available: true, configured: true, model: "rules-v1", detail: "Always available" },
+    { mode: "openai", provider: "openai", available: false, configured: false, model: null, detail: "Not configured" },
+    { mode: "ollama", provider: "ollama", available: false, configured: false, model: null, detail: "Not configured" },
+  ],
+};
 
 const demo: DemoBundle = {
   project: {
@@ -14,6 +36,7 @@ const demo: DemoBundle = {
     name: "Demo store",
     created_at: "2026-08-29T08:00:00Z",
     updated_at: "2026-08-29T08:00:00Z",
+    agent_settings: agentSettings,
     settings: {
       scenario_id: "green-close",
       operating_days_per_year: 360,
@@ -61,6 +84,24 @@ function pendingRun(id: string, seed: number): PersistedSimulationRun {
     configuration_current: true,
     game_master_rules_version: "test-rules-v1",
     game_master_rules_snapshot: [],
+    agent_mode: "deterministic",
+    agent_provider: "deterministic",
+    agent_model: "rules-v1",
+    provider_configuration_fingerprint: "deterministic:rules-v1",
+    prompt_template_version: "test-prompt-v1",
+    agent_settings_snapshot: agentSettings,
+    agent_usage: {
+      provider_calls: 0,
+      deterministic_decisions: 0,
+      cached_decisions: 0,
+      fallback_decisions: 0,
+      provider_failures: 0,
+      budget_exhaustions: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+      estimated_cost_usd: 0,
+      total_latency_ms: 0,
+    },
     failure_message: null,
   };
 }
@@ -77,6 +118,13 @@ function runSummary(run: PersistedSimulationRun): SimulationRunSummary {
     estimated_savings_sgd: null,
     configuration_current: run.configuration_current,
     game_master_rules_version: run.game_master_rules_version,
+    agent_mode: run.agent_mode,
+    agent_provider: run.agent_provider,
+    agent_model: run.agent_model,
+    fallback_decisions: run.agent_usage.fallback_decisions,
+    provider_calls: run.agent_usage.provider_calls,
+    total_tokens: run.agent_usage.input_tokens + run.agent_usage.output_tokens,
+    estimated_cost_usd: run.agent_usage.estimated_cost_usd,
     failure_message: run.failure_message,
   };
 }
@@ -92,6 +140,12 @@ describe("application startup", () => {
       const url = String(input);
       if (url.endsWith("/api/demo/bootstrap")) {
         return new Response(JSON.stringify(demo), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.endsWith("/api/ai/status")) {
+        return new Response(JSON.stringify(aiStatus), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
@@ -116,7 +170,7 @@ describe("application startup", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "No simulation runs yet" })).toBeVisible();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
 
     const requests = fetchMock.mock.calls.map(([input, init]) => ({
       url: String(input),
@@ -124,8 +178,8 @@ describe("application startup", () => {
     }));
     expect(requests[0].url.endsWith("/api/demo/bootstrap")).toBe(true);
     expect(requests[0].method).toBe("POST");
-    expect(requests[1].url.endsWith("/api/projects/project_demo/runs")).toBe(true);
-    expect(requests[1].method).toBe("GET");
+    expect(requests.some(({ url, method }) => url.endsWith("/api/ai/status") && method === "GET")).toBe(true);
+    expect(requests.some(({ url, method }) => url.endsWith("/api/projects/project_demo/runs") && method === "GET")).toBe(true);
     expect(requests.some(({ url }) => url.includes("/simulations/") || url.includes("/analysis"))).toBe(false);
     expect(requests.some(({ url, method }) => url.endsWith("/runs") && method === "POST")).toBe(false);
   });
@@ -137,6 +191,12 @@ describe("application startup", () => {
       const url = String(input);
       if (url.endsWith("/api/demo/bootstrap")) {
         return new Response(JSON.stringify(demo), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.endsWith("/api/ai/status")) {
+        return new Response(JSON.stringify(aiStatus), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });

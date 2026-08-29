@@ -1,4 +1,8 @@
 import type {
+  AIStatus,
+  AITestResult,
+  AgentIntelligenceSettings,
+  AgentMode,
   DemoBundle,
   ChecklistSession,
   EventExplanation,
@@ -10,6 +14,7 @@ import type {
   Store,
   StoreSettings,
   SimulationRunSummary,
+  SimulationRunCreate,
   UtilityBill,
 } from "./types";
 
@@ -88,6 +93,33 @@ export function updateStoreSettings(
   });
 }
 
+export function updateAgentSettings(
+  projectId: string,
+  settings: AgentIntelligenceSettings,
+): Promise<Project> {
+  return request(`/api/projects/${projectId}/agent-settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+}
+
+export function fetchAIStatus(): Promise<AIStatus> {
+  return request("/api/ai/status");
+}
+
+export function testAIProvider(values: {
+  mode: AgentMode;
+  model: string | null;
+  timeout_seconds: number;
+}): Promise<AITestResult> {
+  return request("/api/ai/test", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+}
+
 export function listSimulationRuns(projectId: string): Promise<SimulationRunSummary[]> {
   return request(`/api/projects/${projectId}/runs`);
 }
@@ -101,7 +133,7 @@ export function fetchSimulationRun(
 
 export function createSimulationRun(
   projectId: string,
-  values: { seed: number; sample_count: number },
+  values: SimulationRunCreate,
 ): Promise<PersistedSimulationRun> {
   return request(`/api/projects/${projectId}/runs`, {
     method: "POST",

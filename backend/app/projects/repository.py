@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+from ..agents.models import AgentIntelligenceSettings
 from ..simulation.models import Store
 from .models import (
     BillConfirmation,
@@ -46,6 +47,7 @@ class SQLiteRepository:
                     name TEXT NOT NULL,
                     store_json TEXT NOT NULL,
                     settings_json TEXT NOT NULL,
+                    agent_settings_json TEXT NOT NULL DEFAULT '{}',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -88,6 +90,14 @@ class SQLiteRepository:
                 ON simulation_runs(project_id, created_at DESC);
                 """
             )
+            project_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(projects)").fetchall()
+            }
+            if "agent_settings_json" not in project_columns:
+                connection.execute(
+                    "ALTER TABLE projects ADD COLUMN agent_settings_json TEXT NOT NULL DEFAULT '{}'"
+                )
 
     def create_project(self, payload: ProjectCreate, *, project_id: str | None = None) -> Project:
         now = _now()
@@ -99,12 +109,18 @@ class SQLiteRepository:
         )
         with self._connect() as connection:
             connection.execute(
-                "INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?)",
+                """
+                INSERT INTO projects (
+                    id, name, store_json, settings_json, agent_settings_json,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
                 (
                     project.id,
                     project.name,
                     project.store.model_dump_json(),
                     project.settings.model_dump_json(),
+                    project.agent_settings.model_dump_json(),
                     project.created_at.isoformat(),
                     project.updated_at.isoformat(),
                 ),
@@ -130,6 +146,23 @@ class SQLiteRepository:
         with self._connect() as connection:
             cursor = connection.execute(
                 "UPDATE projects SET settings_json = ?, updated_at = ? WHERE id = ?",
+                (settings.model_dump_json(), now.isoformat(), project_id),
+            )
+        return None if cursor.rowcount == 0 else self.get_project(project_id)
+
+    def update_agent_settings(
+        self,
+        project_id: str,
+        settings: AgentIntelligenceSettings,
+    ) -> Project | None:
+        now = _now()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE projects
+                SET agent_settings_json = ?, updated_at = ?
+                WHERE id = ?
+                """,
                 (settings.model_dump_json(), now.isoformat(), project_id),
             )
         return None if cursor.rowcount == 0 else self.get_project(project_id)
@@ -358,6 +391,7 @@ class SQLiteRepository:
             "name": row["name"],
             "store": json.loads(row["store_json"]),
             "settings": json.loads(row["settings_json"]),
+            "agent_settings": json.loads(row["agent_settings_json"] or "{}"),
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
         }

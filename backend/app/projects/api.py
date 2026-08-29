@@ -9,6 +9,13 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import PlainTextResponse
 
+from ..agents import (
+    AGENT_PROMPT_TEMPLATE_VERSION,
+    AgentIntelligenceSettings,
+    AgentProviderLimits,
+    BudgetedAgentProvider,
+    build_agent_provider,
+)
 from ..simulation import (
     GAME_MASTER_RULES,
     GAME_MASTER_RULES_VERSION,
@@ -95,7 +102,57 @@ def run_summary(run: PersistedSimulationRun) -> SimulationRunSummary:
         estimated_savings_sgd=savings,
         configuration_current=run.configuration_current,
         game_master_rules_version=run.game_master_rules_version,
+        agent_mode=run.agent_mode,
+        agent_provider=run.agent_provider,
+        agent_model=run.agent_model,
+        fallback_decisions=run.agent_usage.fallback_decisions,
+        provider_calls=run.agent_usage.provider_calls,
+        total_tokens=run.agent_usage.total_tokens,
+        estimated_cost_usd=run.agent_usage.estimated_cost_usd,
         failure_message=run.failure_message,
+    )
+
+
+def effective_agent_settings(
+    project: Project,
+    request: SimulationRunCreate,
+) -> AgentIntelligenceSettings:
+    overrides = request.model_dump(
+        exclude_none=True,
+        include={
+            "mode",
+            "model",
+            "max_calls",
+            "max_calls_per_agent",
+            "timeout_seconds",
+            "max_concurrency",
+            "token_budget",
+            "cost_budget_usd",
+        },
+    )
+    return project.agent_settings.model_copy(update=overrides)
+
+
+def scenario_provider_limits(
+    settings: AgentIntelligenceSettings,
+    *,
+    intervention: bool,
+) -> AgentProviderLimits:
+    def share_integer(total: int) -> int:
+        first = total // 2
+        return total - first if intervention else first
+
+    def share_float(total: float) -> float:
+        first = total / 2
+        return total - first if intervention else first
+
+    return AgentProviderLimits(
+        max_calls=share_integer(settings.max_calls),
+        max_calls_per_agent=share_integer(settings.max_calls_per_agent),
+        timeout_seconds=settings.timeout_seconds,
+        max_concurrency=settings.max_concurrency,
+        token_budget=share_integer(settings.token_budget),
+        cost_budget_usd=share_float(settings.cost_budget_usd),
     )
 
 
@@ -185,6 +242,18 @@ def update_settings(
     return project
 
 
+@router.put("/projects/{project_id}/agent-settings", response_model=Project)
+def update_agent_settings(
+    project_id: str,
+    settings: AgentIntelligenceSettings,
+    repo: SQLiteRepository = Depends(repository),
+) -> Project:
+    require_project(repo, project_id)
+    project = repo.update_agent_settings(project_id, settings)
+    assert project is not None
+    return project
+
+
 @router.put("/projects/{project_id}/store", response_model=Project)
 def update_store_settings(
     project_id: str,
@@ -211,6 +280,12 @@ def create_simulation_run(
     project = require_project(repo, project_id)
     evidence = repo.latest_confirmed_bill(project_id)
     configuration_hash = run_configuration_hash(project, evidence)
+    agent_settings = effective_agent_settings(project, request)
+    provider = build_agent_provider(
+        agent_settings.mode,
+        model=agent_settings.model,
+        timeout_seconds=agent_settings.timeout_seconds,
+    )
     run = PersistedSimulationRun(
         id=f"run_{uuid4().hex[:12]}",
         project_id=project_id,
@@ -224,21 +299,37 @@ def create_simulation_run(
         configuration_hash=configuration_hash,
         game_master_rules_version=GAME_MASTER_RULES_VERSION,
         game_master_rules_snapshot=list(GAME_MASTER_RULES),
+        agent_mode=agent_settings.mode,
+        agent_provider=provider.name,
+        agent_model=provider.model,
+        provider_configuration_fingerprint=provider.configuration_fingerprint,
+        prompt_template_version=AGENT_PROMPT_TEMPLATE_VERSION,
+        agent_settings_snapshot=agent_settings,
     )
     repo.create_simulation_run(run)
     run = run.model_copy(update={"status": RunStatus.RUNNING})
     repo.update_simulation_run(run)
 
     try:
+        baseline_provider = BudgetedAgentProvider(
+            provider,
+            scenario_provider_limits(agent_settings, intervention=False),
+        )
+        intervention_provider = BudgetedAgentProvider(
+            provider,
+            scenario_provider_limits(agent_settings, intervention=True),
+        )
         baseline = GameMaster(
             run.store_snapshot,
             get_scenario("baseline"),
             run.seed,
+            agent_provider=baseline_provider,
         ).run()
         intervention = GameMaster(
             run.store_snapshot,
             get_scenario(run.scenario_settings_snapshot.scenario_id),
             run.seed,
+            agent_provider=intervention_provider,
         ).run()
         comparison = GameMaster.compare(baseline, intervention)
         analysis = None
@@ -267,14 +358,17 @@ def create_simulation_run(
                 "intervention_explanations": [
                     explain_event(event) for event in intervention.events
                 ],
+                "agent_usage": baseline.provider_usage.plus(
+                    intervention.provider_usage
+                ),
             }
         )
-    except Exception as exc:  # Persist an auditable failure instead of losing the attempt.
+    except Exception:  # Persist an auditable state without exposing transport details.
         run = run.model_copy(
             update={
                 "status": RunStatus.FAILED,
                 "completed_at": datetime.now(UTC),
-                "failure_message": str(exc)[:500] or "Simulation generation failed",
+                "failure_message": "Simulation generation failed safely; no historical inputs were modified.",
             }
         )
     repo.update_simulation_run(run)

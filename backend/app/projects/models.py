@@ -6,6 +6,12 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from ..agents.models import (
+    AGENT_PROMPT_TEMPLATE_VERSION,
+    AgentIntelligenceSettings,
+    AgentMode,
+    AgentUsageSummary,
+)
 from ..simulation.models import EventExplanation, ScenarioComparison, Store
 
 
@@ -55,6 +61,9 @@ class ProjectCreate(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     store: Store
     settings: ScenarioSettings = Field(default_factory=ScenarioSettings)
+    agent_settings: AgentIntelligenceSettings = Field(
+        default_factory=AgentIntelligenceSettings
+    )
 
 
 class Project(ProjectCreate):
@@ -160,6 +169,14 @@ class RunStatus(StrEnum):
 class SimulationRunCreate(BaseModel):
     seed: int = Field(default=42, ge=0, le=2_147_483_647)
     sample_count: int = Field(default=120, ge=25, le=500)
+    mode: AgentMode | None = None
+    model: str | None = Field(default=None, max_length=120)
+    max_calls: int | None = Field(default=None, ge=0, le=200)
+    max_calls_per_agent: int | None = Field(default=None, ge=0, le=50)
+    timeout_seconds: float | None = Field(default=None, ge=0.25, le=60)
+    max_concurrency: int | None = Field(default=None, ge=1, le=8)
+    token_budget: int | None = Field(default=None, ge=0, le=1_000_000)
+    cost_budget_usd: float | None = Field(default=None, ge=0, le=1_000)
 
 
 class GameMasterRuleSnapshot(BaseModel):
@@ -187,6 +204,15 @@ class PersistedSimulationRun(BaseModel):
     configuration_current: bool = True
     game_master_rules_version: str
     game_master_rules_snapshot: list[GameMasterRuleSnapshot] = Field(default_factory=list)
+    agent_mode: AgentMode = AgentMode.DETERMINISTIC
+    agent_provider: str = "deterministic"
+    agent_model: str = "situational-awareness-rules"
+    provider_configuration_fingerprint: str = "legacy-deterministic"
+    prompt_template_version: str = AGENT_PROMPT_TEMPLATE_VERSION
+    agent_settings_snapshot: AgentIntelligenceSettings = Field(
+        default_factory=AgentIntelligenceSettings
+    )
+    agent_usage: AgentUsageSummary = Field(default_factory=AgentUsageSummary)
     failure_message: str | None = None
 
 
@@ -201,6 +227,13 @@ class SimulationRunSummary(BaseModel):
     estimated_savings_sgd: float | None = None
     configuration_current: bool
     game_master_rules_version: str
+    agent_mode: AgentMode = AgentMode.DETERMINISTIC
+    agent_provider: str = "deterministic"
+    agent_model: str = "situational-awareness-rules"
+    fallback_decisions: int = 0
+    provider_calls: int = 0
+    total_tokens: int = 0
+    estimated_cost_usd: float = 0
     failure_message: str | None = None
 
 

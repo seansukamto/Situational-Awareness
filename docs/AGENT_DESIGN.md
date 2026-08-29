@@ -22,11 +22,12 @@ claim of general-purpose prediction:
 | Report agent | A deterministic decision brief grounded in the saved analysis |
 | Interactive world | A Three.js replay reconstructed from the ledger |
 
-The current MVP does **not** use GraphRAG, long-term LLM memory, autonomous
-language-model actions, thousands of agents, or chat-with-agent features. Those
-would add cost and apparent realism before the retail behaviour model is
-calibrated. The deterministic engine also keeps matched baseline/intervention
-runs reproducible and makes every safety ruling testable.
+The current vertical slice does **not** use GraphRAG, unbounded long-term
+memory, autonomous state mutation, thousands of agents, or chat-with-agent
+features. It does support constrained language-model proposals at meaningful
+decision points. The deterministic engine remains the default and fallback,
+keeping matched baseline/intervention runs operational without credentials and
+making every safety ruling testable.
 
 MiroFish is published under AGPL-3.0. This repository uses its public workflow
 as design research and contains an independent implementation; no MiroFish code
@@ -47,9 +48,32 @@ Staff and consumers are independent agents sharing the same world:
 - all baseline/intervention comparisons use the same per-agent random draw for
   a seed, so the intervention changes behaviour probability rather than luck.
 
-The Game Master is policy authority, not an LLM. A future language model may
-explain events or suggest candidate actions, but it must not bypass the typed
-action schema or deterministic validators.
+The Game Master is policy authority, not an LLM. OpenAI or Ollama may suggest a
+candidate action through the strict public `AgentProposal` schema, but cannot
+bypass deterministic validators or perform authoritative arithmetic.
+
+## Provider and memory boundary
+
+- `DeterministicAgentProvider` returns the existing paired-seed proposal.
+- `OpenAIAgentProvider` uses the official SDK's Responses API with a strict JSON
+  schema and `store=False`.
+- `OllamaAgentProvider` uses an Ollama-compatible `/api/chat` endpoint with the
+  same JSON schema.
+- `BudgetedAgentProvider` supplies per-run/per-agent call limits, timeout,
+  concurrency, token/cost ceilings, within-run request caching, usage tracking,
+  and labelled deterministic fallback.
+
+Observations contain only the current simulated time, actor archetype and
+state, bounded nearby entities, permitted actions/targets, active intervention,
+Game Master constraints, up to four recent public memories, and one bounded
+summary of older memories. The response requests a short public rationale—not
+hidden chain-of-thought. Raw prompts and sensitive personal information are not
+persisted.
+
+Each immutable paired run stores mode/provider/model metadata, a secret-free
+configuration fingerprint, prompt and Game Master versions, settings snapshot,
+public proposals, accept/reject outcomes, failures/fallbacks, latency and usage,
+plus the existing configuration, evidence, metrics, and complete replay logs.
 
 ## Where the defensible moat can grow
 

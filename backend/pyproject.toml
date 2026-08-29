@@ -9,6 +9,8 @@ description = "Authoritative retail sustainability simulation API"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115,<1",
+  "httpx>=0.28,<1",
+  "openai>=2,<3",
   "pydantic>=2.10,<3",
   "pypdf>=6.0,<7",
   "python-multipart>=0.0.20,<1",
@@ -17,7 +19,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "httpx>=0.28,<1",
   "pytest>=8.3,<9"
 ]
 

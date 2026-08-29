@@ -7,6 +7,11 @@ flowchart LR
     Manager["Manager workspace"] --> API["FastAPI application"]
     Staff["Scoped mobile checklist"] --> API
     API --> Projects["Project and bill service"]
+    API --> Providers["Agent provider boundary"]
+    Providers --> Deterministic["Deterministic rules"]
+    Providers --> OpenAI["OpenAI Responses API"]
+    Providers --> Ollama["Ollama-compatible API"]
+    Providers --> GM
     API --> GM["Authoritative Game Master"]
     Projects --> DB[("Local SQLite")]
     Projects --> Impact["Monte Carlo impact analysis"]
@@ -20,17 +25,26 @@ The Game Master is the only component allowed to mutate simulation state. The
 Three.js scene is a read-only projection reconstructed from the event sequence;
 moving the replay slider never sends an action back to the engine.
 
+Provider implementations receive a bounded `AgentObservation` and return an
+`AgentProposal`; they do not receive a mutable store object. The public proposal
+schema permits only `move`, `operate_equipment`, `assist_customer`,
+`remind_staff`, `wait`, or `exit`, an optional target/destination, a short public
+rationale, and confidence. Provider-specific transport stays outside the Game
+Master. The Game Master is the sole authority for permissions, state
+transitions, arithmetic, and event logging.
+
 ## Simulation tick
 
 For each five-minute tick, the engine:
 
-1. Advances individual consumer agents and emits movement or exit events.
-2. Integrates the energy used by the current equipment state.
-3. Advances staff fatigue after closing time.
-4. Delivers a configured intervention nudge when scheduled.
-5. Lets eligible staff agents propose their next assigned action.
-6. Validates protected-load, role-authority, occupancy, and current-state rules.
-7. Applies accepted actions and appends every transition to the ledger.
+1. Builds bounded observations at meaningful consumer decision points.
+2. Requests a provider proposal or an explicit deterministic fallback.
+3. Validates movement, exit, role, occupancy, opening-hours, and equipment rules.
+4. Applies accepted proposals and records rejected proposals.
+5. Integrates energy used by the resulting equipment state.
+6. Advances staff fatigue and workload after closing time.
+7. Delivers a configured intervention nudge when scheduled.
+8. Repeats the bounded proposal/validation path for eligible staff.
 
 Random attempts use a stable draw keyed by seed, minute, agent, and action. This
 keeps baseline and intervention comparisons paired: Green Close changes the
@@ -61,6 +75,9 @@ never used to force-fit the closing-equipment model.
 - Simulation completion metrics and staff handoff use the same authorized-task
   function, which excludes protected loads and assignments outside role authority.
 - Customer and staff agents use archetypes rather than real identities.
+- Provider credentials are read from backend environment variables only. Safe
+  provider fingerprints, model names, public rationales, usage, and latency may
+  be persisted; secrets, raw prompts, and hidden reasoning are not.
 
 ## Extension points
 

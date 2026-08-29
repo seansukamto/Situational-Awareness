@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { updateStoreSettings } from "../api";
 import type {
+  AIStatus,
   DemoBundle,
   ImpactAnalysis,
   Project,
@@ -10,6 +11,7 @@ import type {
   UtilityBill,
 } from "../types";
 import { BillUpload } from "./BillUpload";
+import { AgentIntelligence } from "./AgentIntelligence";
 import { ScenarioSettings } from "./ScenarioSettings";
 
 function minuteToTime(minute: number): string {
@@ -126,7 +128,7 @@ function DocumentLibrary({
   return (
     <section className="config-card documents-card">
       <div className="config-card-heading">
-        <div><span>03 · Evidence documents</span><h2>Utility bill library</h2></div>
+        <div><span>04 · Evidence documents</span><h2>Utility bill library</h2></div>
         <small>{bills.length} source{bills.length === 1 ? "" : "s"} · raw files discarded</small>
       </div>
       <div className="documents-layout">
@@ -155,11 +157,15 @@ export function ConfigurationPage({
   project,
   bills,
   analysis,
+  aiStatus,
+  aiStatusLoading,
   onConfirmed,
 }: {
   project: Project;
   bills: UtilityBill[];
   analysis?: ImpactAnalysis;
+  aiStatus?: AIStatus;
+  aiStatusLoading: boolean;
   onConfirmed: (bill: UtilityBill) => void;
 }) {
   const uniqueBills = useMemo(
@@ -185,6 +191,7 @@ export function ConfigurationPage({
       <div className="configuration-grid">
         <StoreProfile project={project} />
         <ScenarioSettings project={project} />
+        <AgentIntelligence project={project} status={aiStatus} statusLoading={aiStatusLoading} />
         <DocumentLibrary project={project} bills={uniqueBills} onConfirmed={onConfirmed} />
       </div>
     </section>

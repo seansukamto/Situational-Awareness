@@ -52,6 +52,18 @@ def test_one_paired_run_persists_and_is_project_scoped(tmp_path):
         assert run["baseline_explanations"]
         assert run["intervention_explanations"]
         assert run["game_master_rules_version"]
+        assert run["agent_mode"] == "deterministic"
+        assert run["agent_provider"] == "deterministic"
+        assert run["agent_model"] == "situational-awareness-rules"
+        assert run["prompt_template_version"]
+        assert run["provider_configuration_fingerprint"]
+        assert run["agent_settings_snapshot"]["mode"] == "deterministic"
+        assert run["agent_usage"]["provider_calls"] == 0
+        assert run["comparison"]["intervention_run"]["agent_decisions"]
+        assert any(
+            event["type"] == "agent_proposal"
+            for event in run["comparison"]["intervention_run"]["events"]
+        )
         assert {rule["id"] for rule in run["game_master_rules_snapshot"]} == {
             "protected_loads",
             "role_authorization",
@@ -64,6 +76,8 @@ def test_one_paired_run_persists_and_is_project_scoped(tmp_path):
         assert history[0]["id"] == run["id"]
         assert history[0]["configuration_current"] is True
         assert history[0]["estimated_savings_sgd"] is not None
+        assert history[0]["agent_mode"] == "deterministic"
+        assert history[0]["provider_calls"] == 0
 
         other = repository.create_project(
             ProjectCreate(name="Other project", store=build_demo_store())
@@ -80,6 +94,44 @@ def test_one_paired_run_persists_and_is_project_scoped(tmp_path):
     with sqlite3.connect(database) as connection:
         count = connection.execute("SELECT COUNT(*) FROM simulation_runs").fetchone()[0]
     assert count == 1
+
+
+def test_unconfigured_generative_mode_completes_with_labelled_fallback(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    repository = SQLiteRepository(tmp_path / "provider-fallback.sqlite3")
+    app.state.repository = repository
+
+    with TestClient(app) as client:
+        client.post("/api/demo/bootstrap")
+        response = client.post(
+            "/api/projects/project_demo_sg_01/runs",
+            json={
+                "mode": "openai",
+                "seed": 2026,
+                "sample_count": 25,
+                "max_calls": 2,
+                "max_calls_per_agent": 2,
+            },
+        )
+
+    assert response.status_code == 201
+    run = response.json()
+    assert run["status"] == "completed"
+    assert run["agent_mode"] == "openai"
+    assert run["agent_usage"]["fallback_decisions"] > 0
+    events = (
+        run["comparison"]["baseline_run"]["events"]
+        + run["comparison"]["intervention_run"]["events"]
+    )
+    assert any(event["type"] == "provider_failure" for event in events)
+    assert any(event["type"] == "provider_fallback" for event in events)
+    proposals = [event for event in events if event["type"] == "agent_proposal"]
+    assert proposals
+    assert all(event["data"]["generated_by_ai"] is False for event in proposals)
 
 
 def test_configuration_change_marks_history_outdated_without_mutating_snapshot(tmp_path):

@@ -4,10 +4,21 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { SimulationRunSummary } from "../types";
+import type { AgentIntelligenceSettings, SimulationRunSummary } from "../types";
 import { RunHistory } from "./RunHistory";
 
 afterEach(() => cleanup());
+
+const agentSettings: AgentIntelligenceSettings = {
+  mode: "deterministic",
+  model: null,
+  max_calls: 12,
+  max_calls_per_agent: 3,
+  timeout_seconds: 5,
+  max_concurrency: 1,
+  token_budget: 6000,
+  cost_budget_usd: 0.25,
+};
 
 function summary(overrides: Partial<SimulationRunSummary> = {}): SimulationRunSummary {
   return {
@@ -21,6 +32,13 @@ function summary(overrides: Partial<SimulationRunSummary> = {}): SimulationRunSu
     estimated_savings_sgd: 81.4,
     configuration_current: true,
     game_master_rules_version: "rules-v1",
+    agent_mode: "deterministic",
+    agent_provider: "deterministic",
+    agent_model: "rules-v1",
+    fallback_decisions: 0,
+    provider_calls: 0,
+    total_tokens: 0,
+    estimated_cost_usd: 0,
     failure_message: null,
     ...overrides,
   };
@@ -35,6 +53,7 @@ describe("RunHistory", () => {
         selectedRunId={null}
         loading={false}
         creating={false}
+        defaultAgentSettings={agentSettings}
         onSelect={vi.fn()}
         onCreate={onCreate}
       />,
@@ -53,6 +72,7 @@ describe("RunHistory", () => {
         selectedRunId={null}
         loading={false}
         creating={false}
+        defaultAgentSettings={agentSettings}
         onSelect={vi.fn()}
         onCreate={onCreate}
       />,
@@ -63,7 +83,7 @@ describe("RunHistory", () => {
     fireEvent.change(screen.getByLabelText("Replay seed"), { target: { value: "91" } });
     fireEvent.change(screen.getByLabelText("Monte Carlo samples"), { target: { value: "60" } });
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Run simulation" }));
-    expect(onCreate).toHaveBeenCalledWith({ seed: 91, sample_count: 60 });
+    expect(onCreate).toHaveBeenCalledWith({ seed: 91, sample_count: 60, ...agentSettings });
   });
 
   it("shows history metadata and selects an older immutable run", () => {
@@ -82,6 +102,7 @@ describe("RunHistory", () => {
         selectedRunId={latest.id}
         loading={false}
         creating={false}
+        defaultAgentSettings={agentSettings}
         onSelect={onSelect}
         onCreate={vi.fn()}
       />,

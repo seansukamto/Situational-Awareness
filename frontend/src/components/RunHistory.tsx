@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import type { SimulationRunSummary } from "../types";
+import type {
+  AIStatus,
+  AgentIntelligenceSettings,
+  AgentMode,
+  SimulationRunCreate,
+  SimulationRunSummary,
+} from "../types";
 
 function shortId(id: string): string {
   return id.replace(/^run_/, "").slice(0, 8).toUpperCase();
@@ -26,6 +32,8 @@ export function RunHistory({
   loading,
   creating,
   createError,
+  aiStatus,
+  defaultAgentSettings,
   onSelect,
   onCreate,
 }: {
@@ -34,13 +42,27 @@ export function RunHistory({
   loading: boolean;
   creating: boolean;
   createError?: string;
+  aiStatus?: AIStatus;
+  defaultAgentSettings: AgentIntelligenceSettings;
   onSelect: (runId: string) => void;
-  onCreate: (values: { seed: number; sample_count: number }) => void;
+  onCreate: (values: SimulationRunCreate) => void;
 }) {
   const [showCreate, setShowCreate] = useState(false);
   const [seed, setSeed] = useState(42);
   const [sampleCount, setSampleCount] = useState(120);
+  const [agentSettings, setAgentSettings] = useState(defaultAgentSettings);
+  useEffect(() => setAgentSettings(defaultAgentSettings), [defaultAgentSettings]);
   const selected = runs.find((run) => run.id === selectedRunId) ?? runs[0];
+  const providerStatus = aiStatus?.modes.find((item) => item.mode === agentSettings.mode);
+
+  const selectMode = (mode: AgentMode) => {
+    const status = aiStatus?.modes.find((item) => item.mode === mode);
+    setAgentSettings({
+      ...agentSettings,
+      mode,
+      model: mode === "deterministic" ? null : status?.model ?? null,
+    });
+  };
 
   if (loading) {
     return (
@@ -94,6 +116,12 @@ export function RunHistory({
               <span>Samples <b>{selected?.sample_count ?? "—"}</b></span>
               <span>Savings <b>{selected?.estimated_savings_sgd == null ? "—" : `S$${selected.estimated_savings_sgd.toFixed(0)}/yr`}</b></span>
             </div>
+            {selected && (
+              <div className={`selected-run-intelligence mode-${selected.agent_mode}`}>
+                <i />
+                <span><strong>{selected.agent_mode === "deterministic" ? "Deterministic agents" : `${selected.agent_mode === "openai" ? "OpenAI" : "Ollama"} agents`}</strong><small>{selected.agent_model}{selected.fallback_decisions ? ` · ${selected.fallback_decisions} fallbacks` : " · no fallbacks"}</small></span>
+              </div>
+            )}
             {createButton}
           </div>
 
@@ -109,6 +137,7 @@ export function RunHistory({
                 <span className="run-list-index">{String(index + 1).padStart(2, "0")}</span>
                 <span className="run-list-identity"><strong>{shortId(run.id)}</strong><small>{runDate(run.created_at)}</small></span>
                 <span className={`run-status ${run.status}`}><i /> {statusLabel(run.status)}</span>
+                <span className={`run-mode-pill mode-${run.agent_mode}`}><i /> {run.agent_mode === "deterministic" ? "Rules" : run.agent_mode === "openai" ? "OpenAI" : "Ollama"}</span>
                 <span className="run-list-stat"><small>Seed</small><strong>{run.seed}</strong></span>
                 <span className="run-list-stat"><small>Samples</small><strong>{run.sample_count}</strong></span>
                 <span className="run-list-stat savings"><small>Estimated savings</small><strong>{run.estimated_savings_sgd == null ? "—" : `S$${run.estimated_savings_sgd.toFixed(0)}`}</strong></span>
@@ -130,9 +159,35 @@ export function RunHistory({
             <p>This creates one history record containing the matched current-close baseline and Green Close intervention. It does not overwrite prior runs.</p>
             <form onSubmit={(event) => {
               event.preventDefault();
-              onCreate({ seed, sample_count: sampleCount });
+              onCreate({ seed, sample_count: sampleCount, ...agentSettings });
               setShowCreate(false);
             }}>
+              <fieldset className="run-mode-selector">
+                <legend>Agent intelligence</legend>
+                {(["deterministic", "openai", "ollama"] as AgentMode[]).map((mode) => {
+                  const status = aiStatus?.modes.find((item) => item.mode === mode);
+                  const available = mode === "deterministic" || Boolean(status?.available);
+                  return (
+                    <button
+                      type="button"
+                      key={mode}
+                      className={agentSettings.mode === mode ? "selected" : ""}
+                      disabled={!available}
+                      onClick={() => selectMode(mode)}
+                    >
+                      <i />
+                      <span><strong>{mode === "deterministic" ? "Deterministic agents" : mode === "openai" ? "OpenAI agents" : "Local Ollama agents"}</strong><small>{status?.model ?? (mode === "deterministic" ? "No credentials required" : "Not configured")}</small></span>
+                      <em>{available ? "Available" : "Unavailable"}</em>
+                    </button>
+                  );
+                })}
+              </fieldset>
+              {agentSettings.mode !== "deterministic" && (
+                <div className="run-provider-notice">
+                  <i />
+                  <p><strong>{providerStatus?.provider ?? agentSettings.mode} · {providerStatus?.model ?? "No model"}</strong>The model proposes actions only. The Game Master validates every decision and automatically labels deterministic fallback.</p>
+                </div>
+              )}
               <label><span>Replay seed</span><input type="number" min="0" max="2147483647" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></label>
               <label><span>Monte Carlo samples</span><select value={sampleCount} onChange={(event) => setSampleCount(Number(event.target.value))}>
                 <option value={25}>25 · Fast validation</option>
@@ -141,6 +196,12 @@ export function RunHistory({
                 <option value={250}>250 · High confidence</option>
                 <option value={500}>500 · Maximum</option>
               </select></label>
+              <div className="run-budget-fields">
+                <label><span>Maximum provider calls</span><input type="number" min="0" max="200" value={agentSettings.max_calls} disabled={agentSettings.mode === "deterministic"} onChange={(event) => setAgentSettings({ ...agentSettings, max_calls: Number(event.target.value) })} /></label>
+                <label><span>Calls per agent</span><input type="number" min="0" max="50" value={agentSettings.max_calls_per_agent} disabled={agentSettings.mode === "deterministic"} onChange={(event) => setAgentSettings({ ...agentSettings, max_calls_per_agent: Number(event.target.value) })} /></label>
+                <label><span>Token budget</span><input type="number" min="0" max="1000000" step="100" value={agentSettings.token_budget} disabled={agentSettings.mode === "deterministic"} onChange={(event) => setAgentSettings({ ...agentSettings, token_budget: Number(event.target.value) })} /></label>
+                <label><span>Estimated cost cap (US$)</span><input type="number" min="0" max="1000" step="0.01" value={agentSettings.cost_budget_usd} disabled={agentSettings.mode === "deterministic"} onChange={(event) => setAgentSettings({ ...agentSettings, cost_budget_usd: Number(event.target.value) })} /></label>
+              </div>
               <div className="paired-run-diagram" aria-label="One paired comparison record">
                 <div><i>01</i><span><strong>Current close</strong>Baseline event log</span></div>
                 <b>＋</b>

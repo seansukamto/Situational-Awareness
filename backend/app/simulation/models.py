@@ -5,6 +5,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from ..agents.models import AgentDecisionAudit, AgentUsageSummary
+
 
 class EquipmentState(StrEnum):
     ON = "on"
@@ -46,6 +48,11 @@ class EventType(StrEnum):
     CUSTOMER_EXITED = "customer_exited"
     NUDGE_SENT = "nudge_sent"
     AGENT_MOVED = "agent_moved"
+    AGENT_OBSERVATION = "agent_observation"
+    AGENT_PROPOSAL = "agent_proposal"
+    PROVIDER_FAILURE = "provider_failure"
+    PROVIDER_FALLBACK = "provider_fallback"
+    PROVIDER_BUDGET_EXHAUSTED = "provider_budget_exhausted"
     ACTION_ACCEPTED = "action_accepted"
     ACTION_REJECTED = "action_rejected"
     EQUIPMENT_STATE_CHANGED = "equipment_state_changed"
@@ -251,6 +258,8 @@ class SimulationRun(BaseModel):
     store: Store
     events: list[SimulationEvent]
     metrics: RunMetrics
+    agent_decisions: list[AgentDecisionAudit] = Field(default_factory=list)
+    provider_usage: AgentUsageSummary = Field(default_factory=AgentUsageSummary)
 
 
 class ComparisonMetric(BaseModel):

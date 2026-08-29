@@ -6,6 +6,7 @@ import {
   createSimulationRun,
   createStaffChecklist,
   downloadRunDecisionBrief,
+  fetchAIStatus,
   fetchSimulationRun,
   listSimulationRuns,
 } from "./api";
@@ -14,7 +15,13 @@ import { ImpactPanel } from "./components/ImpactPanel";
 import { ReplayTimeline } from "./components/ReplayTimeline";
 import { RunHistory } from "./components/RunHistory";
 import { StaffHandoff } from "./components/StaffHandoff";
-import type { PersistedSimulationRun, SimulationEvent, SimulationRunSummary, UtilityBill } from "./types";
+import type {
+  PersistedSimulationRun,
+  SimulationEvent,
+  SimulationRunCreate,
+  SimulationRunSummary,
+  UtilityBill,
+} from "./types";
 import { buildWorld } from "./world";
 
 const StoreScene = lazy(() =>
@@ -22,8 +29,10 @@ const StoreScene = lazy(() =>
 );
 
 function eventTone(type: string): string {
-  if (type.includes("rejected")) return "blocked";
-  if (type.includes("equipment") || type.includes("checklist")) return "accepted";
+  if (type.includes("rejected") || type.includes("failure") || type.includes("budget")) return "blocked";
+  if (type.includes("accepted") || type.includes("equipment") || type.includes("checklist")) return "accepted";
+  if (type.includes("proposal") || type.includes("observation")) return "proposal";
+  if (type.includes("fallback")) return "fallback";
   if (type.includes("customer")) return "consumer";
   return "neutral";
 }
@@ -51,6 +60,13 @@ function summarizeRun(run: PersistedSimulationRun): SimulationRunSummary {
     estimated_savings_sgd: run.impact_analysis?.metrics.annual_utility_savings?.p50 ?? null,
     configuration_current: run.configuration_current,
     game_master_rules_version: run.game_master_rules_version,
+    agent_mode: run.agent_mode,
+    agent_provider: run.agent_provider,
+    agent_model: run.agent_model,
+    fallback_decisions: run.agent_usage.fallback_decisions,
+    provider_calls: run.agent_usage.provider_calls,
+    total_tokens: run.agent_usage.input_tokens + run.agent_usage.output_tokens,
+    estimated_cost_usd: run.agent_usage.estimated_cost_usd,
     failure_message: run.failure_message,
   };
 }
@@ -67,6 +83,7 @@ export default function App() {
   const [activeView, setActiveView] = useState<"simulation" | "configuration">("simulation");
 
   const demo = useQuery({ queryKey: ["demo"], queryFn: bootstrapDemo, retry: 1 });
+  const aiStatus = useQuery({ queryKey: ["ai-status"], queryFn: fetchAIStatus, retry: 1 });
   const project = demo.data?.project;
   const runs = useQuery({
     queryKey: ["runs", project?.id],
@@ -81,7 +98,7 @@ export default function App() {
     retry: 1,
   });
   const createRun = useMutation({
-    mutationFn: (values: { seed: number; sample_count: number }) => (
+    mutationFn: (values: SimulationRunCreate) => (
       createSimulationRun(project!.id, values)
     ),
     onSuccess: (created) => {
@@ -144,6 +161,11 @@ export default function App() {
     ? explanations?.find((item) => item.event_seq === currentEvent.seq)
     : null;
   const recentEvents = events.slice(Math.max(0, step - 4), step).reverse();
+  const currentDecision = currentEvent
+    ? [...(run?.agent_decisions ?? [])].reverse().find((decision) => (
+      decision.event_seq != null && decision.event_seq <= currentEvent.seq
+    ))
+    : null;
   const bills = demo.data?.bills ?? [];
   const evidence = persistedRun?.evidence_snapshot;
   const analysis = persistedRun?.impact_analysis ?? undefined;
@@ -244,6 +266,8 @@ export default function App() {
             project={project}
             bills={confirmedBill ? [confirmedBill, ...bills] : bills}
             analysis={analysis}
+            aiStatus={aiStatus.data}
+            aiStatusLoading={aiStatus.isLoading}
             onConfirmed={setConfirmedBill}
           />
         ) : (
@@ -255,6 +279,8 @@ export default function App() {
                 loading={runs.isLoading}
                 creating={createRun.isPending}
                 createError={createRun.error instanceof Error ? createRun.error.message : undefined}
+                aiStatus={aiStatus.data}
+                defaultAgentSettings={project.agent_settings}
                 onSelect={setSelectedRunId}
                 onCreate={(values) => createRun.mutate(values)}
               />
@@ -301,12 +327,29 @@ export default function App() {
                     <aside className="game-master-panel">
                       <div className="gm-heading">
                         <span className="gm-orbit"><i /></span>
-                        <div><small>{persistedRun.game_master_rules_version}</small><h2>Game Master</h2></div>
+                        <div><small>{persistedRun.game_master_rules_version} · {persistedRun.agent_provider}</small><h2>Game Master</h2></div>
+                      </div>
+                      <div className={`gm-provider mode-${persistedRun.agent_mode}`}>
+                        <span><i /> {persistedRun.agent_mode === "deterministic" ? "Rules engine" : `${persistedRun.agent_mode === "openai" ? "OpenAI" : "Ollama"} proposals`}</span>
+                        <small>{persistedRun.agent_model} · {persistedRun.prompt_template_version}</small>
+                        <div>
+                          <b>{persistedRun.agent_usage.provider_calls} calls</b>
+                          <b>{persistedRun.agent_usage.fallback_decisions} fallbacks</b>
+                          <b>{persistedRun.agent_usage.input_tokens + persistedRun.agent_usage.output_tokens} tokens</b>
+                        </div>
                       </div>
                       <div className="gm-state">
                         <span>Current ruling</span>
                         <strong>{currentEvent?.type.replaceAll("_", " ") ?? "Stored replay ready"}</strong>
                         <p>{currentExplanation?.rationale ?? "Play replay to inspect the selected run’s existing event ledger. No simulation is recalculated."}</p>
+                        {currentDecision && (
+                          <div className="decision-trace">
+                            <span className={currentDecision.generated_by_ai ? "ai" : "rules"}>{currentDecision.generated_by_ai ? "AI proposal" : "Deterministic proposal"}</span>
+                            <span className={currentDecision.accepted ? "accepted" : "rejected"}>{currentDecision.accepted ? "Accepted" : "Rejected"}</span>
+                            {currentDecision.fallback_used && <span className="fallback">Fallback used</span>}
+                            <p>“{currentDecision.public_reason}”</p>
+                          </div>
+                        )}
                         {currentExplanation && <div className="explanation-rules">{currentExplanation.rules_checked.slice(0, 3).map((rule) => <span key={rule}>{rule}</span>)}</div>}
                       </div>
                       <div className="rule-stack">
@@ -325,9 +368,31 @@ export default function App() {
                       </div>
                       <div className="event-ledger">
                         <div className="ledger-title"><span>Event ledger</span><small>immutable</small></div>
-                        {recentEvents.length ? recentEvents.map((event: SimulationEvent) => (
-                          <div className="ledger-event" key={event.seq}><i className={`tone-${eventTone(event.type)}`} /><p><strong>{event.message}</strong><small>#{event.seq} · {event.at_minute}</small></p></div>
-                        )) : <p className="ledger-empty">Play replay to inspect the stored, validated state changes.</p>}
+                        {recentEvents.length ? recentEvents.map((event: SimulationEvent) => {
+                          const eventDecision = event.type === "agent_proposal"
+                            ? run?.agent_decisions.find((decision) => (
+                              decision.agent_id === event.agent_id
+                              && decision.at_minute === event.at_minute
+                              && decision.event_seq != null
+                              && decision.event_seq >= event.seq
+                            ))
+                            : null;
+                          return (
+                            <div className="ledger-event" key={event.seq}>
+                              <i className={`tone-${eventTone(event.type)}`} />
+                              <p>
+                                <strong>{event.message}</strong>
+                                <small>
+                                  #{event.seq} · {event.at_minute}
+                                  {event.data.generated_by_ai === true ? " · AI" : event.type === "agent_proposal" ? " · rules" : ""}
+                                  {eventDecision ? ` · GM ${eventDecision.accepted ? "accepted" : "rejected"}` : ""}
+                                  {event.data.fallback_used === true ? " · fallback" : ""}
+                                </small>
+                                {typeof event.data.public_reason === "string" && <em>{event.data.public_reason}</em>}
+                              </p>
+                            </div>
+                          );
+                        }) : <p className="ledger-empty">Play replay to inspect the stored, validated state changes.</p>}
                       </div>
                     </aside>
                   </div>

@@ -66,6 +66,76 @@ export type SimulationEvent = {
   data: Record<string, unknown>;
 };
 
+export type AgentMode = "deterministic" | "openai" | "ollama";
+
+export type AgentProposalAction =
+  | "move"
+  | "operate_equipment"
+  | "assist_customer"
+  | "remind_staff"
+  | "wait"
+  | "exit";
+
+export type AgentProposal = {
+  action: AgentProposalAction;
+  target_id: string | null;
+  destination: string | null;
+  public_reason: string;
+  confidence: number;
+};
+
+export type AgentDecisionAudit = {
+  event_seq: number | null;
+  at_minute: number;
+  scenario_id: string;
+  actor_kind: "staff" | "consumer";
+  agent_id: string;
+  observation: Record<string, unknown>;
+  proposal: AgentProposal;
+  accepted: boolean;
+  outcome: string;
+  provider: string;
+  model: string;
+  generated_by_ai: boolean;
+  fallback_used: boolean;
+  failure_kind: string | null;
+  public_reason: string;
+  latency_ms: number;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number;
+  memory_summary: string;
+};
+
+export type AgentUsageSummary = {
+  provider_calls: number;
+  deterministic_decisions: number;
+  cached_decisions: number;
+  fallback_decisions: number;
+  provider_failures: number;
+  budget_exhaustions: number;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number;
+  total_latency_ms: number;
+};
+
+export type AgentIntelligenceSettings = {
+  mode: AgentMode;
+  model: string | null;
+  max_calls: number;
+  max_calls_per_agent: number;
+  timeout_seconds: number;
+  max_concurrency: number;
+  token_budget: number;
+  cost_budget_usd: number;
+};
+
+export type SimulationRunCreate = AgentIntelligenceSettings & {
+  seed: number;
+  sample_count: number;
+};
+
 export type RunMetrics = {
   total_kwh: number;
   after_hours_kwh: number;
@@ -87,6 +157,8 @@ export type SimulationRun = {
   store: Store;
   events: SimulationEvent[];
   metrics: RunMetrics;
+  agent_decisions: AgentDecisionAudit[];
+  provider_usage: AgentUsageSummary;
 };
 
 export type ComparisonMetric = {
@@ -131,6 +203,7 @@ export type Project = {
   name: string;
   store: Store;
   settings: ScenarioSettings;
+  agent_settings: AgentIntelligenceSettings;
   created_at: string;
   updated_at: string;
 };
@@ -199,6 +272,13 @@ export type SimulationRunSummary = {
   estimated_savings_sgd: number | null;
   configuration_current: boolean;
   game_master_rules_version: string;
+  agent_mode: AgentMode;
+  agent_provider: string;
+  agent_model: string;
+  fallback_decisions: number;
+  provider_calls: number;
+  total_tokens: number;
+  estimated_cost_usd: number;
   failure_message: string | null;
 };
 
@@ -225,7 +305,40 @@ export type PersistedSimulationRun = {
     label: string;
     description: string;
   }>;
+  agent_mode: AgentMode;
+  agent_provider: string;
+  agent_model: string;
+  provider_configuration_fingerprint: string;
+  prompt_template_version: string;
+  agent_settings_snapshot: AgentIntelligenceSettings;
+  agent_usage: AgentUsageSummary;
   failure_message: string | null;
+};
+
+export type ProviderModeStatus = {
+  mode: AgentMode;
+  provider: string;
+  available: boolean;
+  configured: boolean;
+  model: string | null;
+  detail: string;
+};
+
+export type AIStatus = {
+  modes: ProviderModeStatus[];
+  selected_mode: AgentMode;
+  prompt_template_version: string;
+  credentials_exposed: false;
+};
+
+export type AITestResult = {
+  success: boolean;
+  mode: AgentMode;
+  provider: string;
+  model: string;
+  latency_ms: number;
+  proposal: AgentProposal | null;
+  error: string | null;
 };
 
 export type EventExplanation = {
