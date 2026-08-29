@@ -207,6 +207,7 @@ describe("staff game flows", () => {
 
     renderWithClient(<StaffGamePage joinToken="join-token" />);
     expect(await screen.findByRole("heading", { name: "Join Demo store." })).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Your configured name"), { target: { value: "  AVA  " } });
     fireEvent.change(screen.getByLabelText("Private join PIN"), { target: { value: "4321" } });
     fireEvent.click(screen.getByRole("button", { name: "Enter the game" }));
 

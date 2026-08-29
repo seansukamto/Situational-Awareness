@@ -109,7 +109,7 @@ export function GameControlPage({ project }: { project: Project }) {
             <button className="game-close-action" type="button" disabled={closeDayMutation.isPending} onClick={() => closeDayMutation.mutate(currentDay.id)}>Close today’s game</button>
           )}
           {currentDay && currentDay.status !== "completed" && (
-            <div className="game-qr-block"><QRCodeSVG value={qrUrl} size={150} bgColor="#ffffff" fgColor="#0b1711" /><div><strong>Staff join QR</strong><p>Players select their roster name and enter their private PIN.</p><input readOnly value={qrUrl} onFocus={(event) => event.target.select()} /></div></div>
+            <div className="game-qr-block"><QRCodeSVG value={qrUrl} size={150} bgColor="#ffffff" fgColor="#0b1711" /><div><strong>Staff join QR</strong><p>Players enter their configured roster name and private PIN.</p><input readOnly value={qrUrl} onFocus={(event) => event.target.select()} /></div></div>
           )}
         </article>
 

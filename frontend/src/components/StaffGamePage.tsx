@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   claimGameTask,
@@ -35,21 +35,26 @@ function taskImpact(task: TaskInstance): string {
 }
 
 
+function normalizedName(value: string): string {
+  return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+}
+
+
 export function StaffGamePage({ joinToken }: { joinToken: string }) {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<GameJoinResponse | null>(() => readSession(joinToken));
-  const [staffId, setStaffId] = useState("");
+  const [staffName, setStaffName] = useState("");
   const [pin, setPin] = useState("");
   const joinSummary = useQuery({
     queryKey: ["game-join", joinToken],
     queryFn: () => inspectGameJoin(joinToken),
     retry: false,
   });
-  useEffect(() => {
-    if (!staffId && joinSummary.data?.staff[0]) setStaffId(joinSummary.data.staff[0].id);
-  }, [joinSummary.data, staffId]);
+  const matchedStaff = useMemo(() => joinSummary.data?.staff.find(
+    (staff) => normalizedName(staff.display_name) === normalizedName(staffName),
+  ), [joinSummary.data, staffName]);
   const join = useMutation({
-    mutationFn: () => joinStaffGame(joinToken, staffId, pin),
+    mutationFn: () => joinStaffGame(joinToken, matchedStaff?.id ?? "", pin),
     onSuccess: (joined) => {
       window.sessionStorage.setItem(sessionKey(joinToken), JSON.stringify(joined));
       setSession(joined);
@@ -95,12 +100,14 @@ export function StaffGamePage({ joinToken }: { joinToken: string }) {
         <section className="join-game-card">
           <span className="kicker">{joinSummary.data.local_date}</span>
           <h1>Join {joinSummary.data.store_name}.</h1>
-          <p>Pick your configured player profile, enter your PIN, and snatch safe sustainability challenges for individual points.</p>
+          <p>Enter your configured roster name and PIN, then snatch safe sustainability challenges for individual points.</p>
           <form onSubmit={(event) => { event.preventDefault(); join.mutate(); }}>
-            <label><span>Your player profile</span><select required value={staffId} onChange={(event) => setStaffId(event.target.value)}>{joinSummary.data.staff.map((staff) => <option key={staff.id} value={staff.id}>{staff.display_name} · {staff.role.replaceAll("_", " ")}</option>)}</select></label>
+            <label><span>Your configured name</span><input required autoComplete="name" list="staff-profile-names" value={staffName} onChange={(event) => setStaffName(event.target.value)} /></label>
+            <datalist id="staff-profile-names">{joinSummary.data.staff.map((staff) => <option key={staff.id} value={staff.display_name}>{staff.role.replaceAll("_", " ")}</option>)}</datalist>
+            {staffName && !matchedStaff && <p className="form-error">Enter your configured roster name exactly.</p>}
             <label><span>Private join PIN</span><input required type="password" inputMode="numeric" pattern="[0-9]{4,8}" value={pin} onChange={(event) => setPin(event.target.value)} /></label>
             {join.isError && <p className="form-error">{join.error.message}</p>}
-            <button type="submit" disabled={!staffId || join.isPending}>{join.isPending ? "Joining…" : "Enter the game"}</button>
+            <button type="submit" disabled={!matchedStaff || join.isPending}>{join.isPending ? "Joining…" : "Enter the game"}</button>
           </form>
           <aside><strong>Safe by design</strong><p>The Game Master shows only tasks allowed for your role, zone, and equipment permissions.</p></aside>
         </section>

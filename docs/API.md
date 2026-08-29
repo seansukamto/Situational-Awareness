@@ -70,7 +70,8 @@ Staff names are unique within a project after whitespace and case
 normalization. Avatar IDs are restricted to bundled local models, zone and
 equipment authorization must reference the project's store snapshot, and PINs
 are stored only as salted scrypt hashes. Authentication fields are never
-returned by the API.
+returned by the API. The QR page matches the typed roster name locally, then
+sends only the matched profile ID and PIN to the join endpoint.
 
 ## Staff sustainability game
 
