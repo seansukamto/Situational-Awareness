@@ -88,7 +88,9 @@ rates in `.env.example` are configured.
   individual points, and a sequence-numbered leaderboard ledger. Managers can
   configure the roster, launch the QR session, watch the leaderboard, and
   replay the recorded staff interactions across the operating day with no
-  simulated consumers mixed into the evidence.
+  simulated consumers mixed into the evidence. Challenge templates cover
+  energy, water, waste, food, transport, and buying habits with equipment,
+  zone, or store-wide targets.
 - Closing a game day produces a structured AI analysis with deterministic
   fallback and an immutable learned-policy version. Only server-validated
   domain point multipliers between `0.90x` and `1.10x` may carry into the next

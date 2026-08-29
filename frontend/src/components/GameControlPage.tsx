@@ -15,7 +15,7 @@ import {
   listTaskTemplates,
   startGameDay,
 } from "../api";
-import type { Project, StaffRole, TaskTemplateCreate } from "../types";
+import type { Project, StaffRole, SustainabilityDomain, TaskTemplateCreate } from "../types";
 import { GameDayReplay } from "./GameDayReplay";
 import { GameLearningPanel } from "./GameLearningPanel";
 
@@ -27,10 +27,14 @@ function roleLabel(role: StaffRole): string {
 
 export function GameControlPage({ project }: { project: Project }) {
   const queryClient = useQueryClient();
-  const [showTaskForm, setShowTaskForm] = useState(false);
-  const [selectedEquipmentId, setSelectedEquipmentId] = useState(
-    project.store.equipment.find((item) => item.criticality !== "protected")?.id ?? "",
+  const selectableEquipment = project.store.equipment.filter(
+    (item) => item.criticality !== "protected" && (item.switchable_by_roles?.length ?? 0) > 0,
   );
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [taskTarget, setTaskTarget] = useState(
+    selectableEquipment[0] ? `equipment:${selectableEquipment[0].id}` : "store",
+  );
+  const [taskDomain, setTaskDomain] = useState<SustainabilityDomain>("energy");
   const [taskLabel, setTaskLabel] = useState("Green action challenge");
   const [taskDescription, setTaskDescription] = useState("Complete this safe sustainability action during today's shift.");
   const [basePoints, setBasePoints] = useState(50);
@@ -80,10 +84,11 @@ export function GameControlPage({ project }: { project: Project }) {
       setShowTaskForm(false);
     },
   });
-  const selectableEquipment = project.store.equipment.filter(
-    (item) => item.criticality !== "protected" && (item.switchable_by_roles?.length ?? 0) > 0,
-  );
-  const selectedEquipment = selectableEquipment.find((item) => item.id === selectedEquipmentId) ?? selectableEquipment[0];
+  const [targetKind, targetId] = taskTarget.split(":", 2);
+  const selectedEquipment = targetKind === "equipment"
+    ? selectableEquipment.find((item) => item.id === targetId)
+    : undefined;
+  const selectedZoneId = selectedEquipment?.zone_id ?? (targetKind === "zone" ? targetId : null);
   const qrUrl = currentDay ? `${window.location.origin}/play/${currentDay.join_token}` : "";
 
   return (
@@ -149,14 +154,13 @@ export function GameControlPage({ project }: { project: Project }) {
             <span className="kicker">Safe challenge template</span><h2 id="task-create-title">Add task to the pool</h2>
             <form onSubmit={(event) => {
               event.preventDefault();
-              if (!selectedEquipment) return;
               createTemplateMutation.mutate({
                 label: taskLabel,
                 description: taskDescription,
-                domain: "energy",
-                zone_id: selectedEquipment.zone_id,
-                equipment_id: selectedEquipment.id,
-                allowed_roles: selectedEquipment.switchable_by_roles ?? [],
+                domain: taskDomain,
+                zone_id: selectedZoneId,
+                equipment_id: selectedEquipment?.id ?? null,
+                allowed_roles: selectedEquipment?.switchable_by_roles ?? ["manager", "closing_associate", "cashier"],
                 allowed_staff_ids: [],
                 available_from_minute: 0,
                 available_until_minute: 1440,
@@ -170,11 +174,12 @@ export function GameControlPage({ project }: { project: Project }) {
             }}>
               <label><span>Task name</span><input required minLength={3} value={taskLabel} onChange={(event) => setTaskLabel(event.target.value)} /></label>
               <label><span>Staff instruction</span><textarea required minLength={3} value={taskDescription} onChange={(event) => setTaskDescription(event.target.value)} /></label>
-              <label><span>Safe equipment target</span><select value={selectedEquipment?.id ?? ""} onChange={(event) => setSelectedEquipmentId(event.target.value)}>{selectableEquipment.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+              <label><span>Sustainability domain</span><select value={taskDomain} onChange={(event) => setTaskDomain(event.target.value as SustainabilityDomain)}><option value="energy">Energy</option><option value="water">Water</option><option value="waste">Waste</option><option value="food">Food</option><option value="transport">Transport</option><option value="buying">Buying</option></select></label>
+              <label><span>Safe task target</span><select value={taskTarget} onChange={(event) => setTaskTarget(event.target.value)}><option value="store">Store-wide</option><optgroup label="Zones">{project.store.zones.map((zone) => <option key={zone.id} value={`zone:${zone.id}`}>{zone.label} (zone)</option>)}</optgroup>{selectableEquipment.length > 0 && <optgroup label="Authorized equipment">{selectableEquipment.map((item) => <option key={item.id} value={`equipment:${item.id}`}>{item.label}</option>)}</optgroup>}</select></label>
               <label><span>Base individual points</span><input type="number" min="1" max="10000" value={basePoints} onChange={(event) => setBasePoints(Number(event.target.value))} /></label>
-              <p className="game-safety-callout"><strong>Game Master boundary</strong> Protected loads are excluded and the backend rechecks role and zone authority before this task can be saved or claimed.</p>
+              <p className="game-safety-callout"><strong>Game Master boundary</strong> Protected loads never appear as targets. Equipment challenges inherit authoritative role and zone permissions; zone and store-wide habits remain limited to configured staff roles.</p>
               {createTemplateMutation.isError && <p className="form-error">{createTemplateMutation.error.message}</p>}
-              <div className="run-create-actions"><button type="button" onClick={() => setShowTaskForm(false)}>Cancel</button><button className="primary" type="submit" disabled={!selectedEquipment || createTemplateMutation.isPending}>Add challenge</button></div>
+              <div className="run-create-actions"><button type="button" onClick={() => setShowTaskForm(false)}>Cancel</button><button className="primary" type="submit" disabled={createTemplateMutation.isPending}>Add challenge</button></div>
             </form>
           </section>
         </div>

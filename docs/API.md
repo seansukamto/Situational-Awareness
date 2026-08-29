@@ -93,8 +93,11 @@ returned by the API.
 | GET | `/api/projects/{project_id}/game-days/{game_day_id}/analysis` | Read the structured post-close metrics, AI narrative, and learned policy version |
 | GET | `/api/projects/{project_id}/game-policies` | Audit immutable learned policies and identify the active next-day version |
 
-Task templates cannot reference protected equipment, and equipment challenges
-must use the authoritative equipment zone and role permissions. Claim updates
+Task templates cannot reference protected equipment. Templates may use the
+`energy`, `water`, `waste`, `food`, `transport`, or
+`buying` domain. Non-equipment habits may target a known zone or the whole
+store while equipment tasks inherit the equipment's authoritative zone and
+role allow-list. Claim updates
 use a versioned SQLite transaction so two staff members cannot win the same
 task. Session tokens are returned once and stored only as SHA-256 hashes. Score
 entries are unique per task instance, preventing duplicate completion points.
