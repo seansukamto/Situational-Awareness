@@ -23,6 +23,7 @@ const policy: LearnedGamePolicy = {
     transport: 1,
     buying: 1,
   },
+  staff_domain_preferences: { staff_ava: ["energy"] },
   guardrails: ["Never create tasks for protected equipment."],
   active: true,
   created_at: "2026-08-30T00:00:00Z",

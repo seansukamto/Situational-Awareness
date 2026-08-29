@@ -127,7 +127,7 @@ export function StaffGamePage({ joinToken }: { joinToken: string }) {
       <section className="staff-task-section">
         <div className="staff-task-heading"><div><span>Task market</span><h2>Available to snatch</h2></div><b>{available.length}</b></div>
         <div className="staff-task-list">
-          {available.map((task) => <article className="staff-task-card available" key={task.id}><div><span>{task.domain}</span><strong>{task.base_points} pts</strong></div><h3>{task.label}</h3><p>{task.description}</p><footer><small>{task.zone_id?.replaceAll("_", " ") ?? "Store-wide"} · {taskImpact(task)}</small><button type="button" disabled={claim.isPending} onClick={() => claim.mutate(task.id)}>Snatch task</button></footer></article>)}
+          {available.map((task) => <article className={`staff-task-card available ${task.game_master_recommended ? "recommended" : ""}`} key={task.id}>{task.game_master_recommended && <aside><strong>✦ Game Master pick</strong><span>{task.recommendation_reason}</span></aside>}<div><span>{task.domain}</span><strong>{task.base_points} pts</strong></div><h3>{task.label}</h3><p>{task.description}</p><footer><small>{task.zone_id?.replaceAll("_", " ") ?? "Store-wide"} · {taskImpact(task)}</small><button type="button" disabled={claim.isPending} onClick={() => claim.mutate(task.id)}>Snatch task</button></footer></article>)}
           {!available.length && <p className="staff-game-empty">No eligible tasks are available right now. Claimed tasks stay reserved for their player.</p>}
         </div>
       </section>

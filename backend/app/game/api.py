@@ -714,7 +714,57 @@ def list_game_tasks(
             and task_is_inside_window(context, task, now)
         ):
             visible.append(task)
-    return visible
+    available = [task for task in visible if task.status == TaskStatus.AVAILABLE]
+    learned_policy = context.repo.get_game_policy(
+        context.project.id,
+        context.game_day.policy_version,
+    )
+    preferences = (
+        learned_policy.staff_domain_preferences.get(context.staff.id, [])
+        if learned_policy else []
+    )
+    recommended_id: str | None = None
+    recommendation_reason: str | None = None
+    if available:
+        def recommendation_rank(task: TaskInstance) -> tuple[int, float, float, int]:
+            preference = (
+                len(preferences) - preferences.index(task.domain)
+                if task.domain in preferences else 0
+            )
+            multiplier = (
+                learned_policy.domain_point_multipliers.get(task.domain, 1.0)
+                if learned_policy else 1.0
+            )
+            return preference, multiplier, task.estimated_impact_value or 0, task.base_points
+
+        recommended = max(available, key=recommendation_rank)
+        recommended_id = recommended.id
+        if recommended.domain in preferences:
+            recommendation_reason = (
+                f"Matches your successful {recommended.domain} challenge history."
+            )
+        elif learned_policy and learned_policy.domain_point_multipliers.get(recommended.domain, 1.0) > 1:
+            recommendation_reason = (
+                f"Prior-day analysis prioritized a clearer {recommended.domain} challenge."
+            )
+        else:
+            recommendation_reason = "Highest-impact eligible challenge currently available."
+    enriched = [
+        task.model_copy(update={
+            "game_master_recommended": task.id == recommended_id,
+            "recommendation_reason": recommendation_reason if task.id == recommended_id else None,
+        })
+        for task in visible
+    ]
+    return sorted(
+        enriched,
+        key=lambda task: (
+            task.status != TaskStatus.CLAIMED,
+            not task.game_master_recommended,
+            -task.base_points,
+            task.id,
+        ),
+    )
 
 
 def task_conflict(exc: ValueError) -> HTTPException:

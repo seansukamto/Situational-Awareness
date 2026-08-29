@@ -93,7 +93,9 @@ rates in `.env.example` are configured.
   fallback and an immutable learned-policy version. Only server-validated
   domain point multipliers between `0.90x` and `1.10x` may carry into the next
   day; protected loads, staff authority, and employment decisions remain
-  permanent guardrails outside the learning loop.
+  permanent guardrails outside the learning loop. Prior verified completions
+  also personalize one visible **Game Master pick** per player while leaving
+  every eligible task available to snatch.
 - Protected equipment is excluded from the staff checklist. The public task
   API accepts only task IDs already authorized in that checklist session.
 - Event explanations cite the exact event sequence, time, transition, and

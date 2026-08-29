@@ -83,7 +83,7 @@ returned by the API.
 | POST | `/api/projects/{project_id}/game-days/{game_day_id}/close` | Close the live task market without rewriting history |
 | GET | `/api/game/join/{join_token}` | Read the scoped active roster for a QR join page |
 | POST | `/api/game/join/{join_token}` | Verify staff PIN and issue a hashed, day-scoped bearer session |
-| GET | `/api/game/tasks` | List eligible available tasks and the player's own tasks |
+| GET | `/api/game/tasks` | List eligible tasks, the player's own claims, and one personalized Game Master pick |
 | POST | `/api/game/tasks/{task_id}/claim` | Atomically reserve one available task for the player |
 | POST | `/api/game/tasks/{task_id}/release` | Return the player's claimed task to the market |
 | POST | `/api/game/tasks/{task_id}/complete` | Complete once and award deterministic individual points |
@@ -105,7 +105,10 @@ falls back to deterministic analysis. AI narrative is advisory. The automatic
 policy surface is limited to validated per-domain point multipliers in the
 `0.90`–`1.10` range, and each new game day snapshots the policy version it will
 use. Data-only prior-day context is recorded in the day-start event so replay
-and audits can show exactly what informed the Game Master.
+and audits can show exactly what informed the Game Master. Verified completion
+history can rank one eligible task as a personalized recommendation; it never
+removes other eligible tasks, changes role/zone/equipment authority, or forces
+an assignment.
 
 ## Error contract
 

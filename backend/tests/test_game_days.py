@@ -175,7 +175,7 @@ def test_end_of_day_analysis_versions_and_applies_a_bounded_policy(tmp_path):
 
     with TestClient(app) as client:
         project_id = client.post("/api/demo/bootstrap").json()["project"]["id"]
-        create_staff(client, project_id, "Ava Lim")
+        staff = create_staff(client, project_id, "Ava Lim")
         create_template(client, project_id)
         day = create_started_day(client, project_id)
 
@@ -213,6 +213,35 @@ def test_end_of_day_analysis_versions_and_applies_a_bounded_policy(tmp_path):
 
         client.post(f"/api/projects/{project_id}/game-days/{day['id']}/close")
         assert len(client.get(f"/api/projects/{project_id}/game-policies").json()) == 1
+
+        next_headers = join_headers(client, next_day, staff)
+        recommended_task = client.get("/api/game/tasks", headers=next_headers).json()[0]
+        assert recommended_task["game_master_recommended"] is True
+        assert "Prior-day analysis" in recommended_task["recommendation_reason"]
+        assert client.post(
+            f"/api/game/tasks/{recommended_task['id']}/claim", headers=next_headers
+        ).status_code == 200
+        assert client.post(
+            f"/api/game/tasks/{recommended_task['id']}/complete", headers=next_headers
+        ).status_code == 200
+        assert client.post(
+            f"/api/projects/{project_id}/game-days/{next_day['id']}/close"
+        ).status_code == 200
+
+        active_policy = client.get(f"/api/projects/{project_id}/game-policies").json()[0]
+        assert active_policy["staff_domain_preferences"][staff["id"]] == ["energy"]
+        third_date = tomorrow + timedelta(days=1)
+        third_day = client.post(
+            f"/api/projects/{project_id}/game-days",
+            json={"local_date": third_date.isoformat(), "start_minute": 0, "end_minute": 1440},
+        ).json()
+        assert client.post(
+            f"/api/projects/{project_id}/game-days/{third_day['id']}/start"
+        ).status_code == 200
+        third_headers = join_headers(client, third_day, staff)
+        personalized = client.get("/api/game/tasks", headers=third_headers).json()[0]
+        assert personalized["game_master_recommended"] is True
+        assert "successful energy challenge history" in personalized["recommendation_reason"]
 
 
 def test_task_claim_is_atomic_and_only_one_staff_wins(tmp_path):

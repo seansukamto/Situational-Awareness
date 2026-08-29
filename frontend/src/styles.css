@@ -229,6 +229,10 @@
 .staff-task-heading > b { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #185c36; background: #d7ecde; }
 .staff-task-list { display: grid; gap: 12px; }
 .staff-task-card { padding: 19px; border: 1px solid #d8e4db; border-radius: 17px; background: #fff; box-shadow: 0 8px 24px rgba(27, 58, 40, .05); }
+.staff-task-card.recommended { border-color: #50ac74; box-shadow: 0 10px 28px rgba(26, 117, 66, .13); }
+.staff-task-card > aside { display: grid; gap: 3px; margin: -8px -8px 14px; padding: 10px 12px; border-radius: 11px; background: #e8f8ee; }
+.staff-task-card > aside strong { color: #176f40; font-size: .72rem; text-transform: uppercase; }
+.staff-task-card > aside span { color: #567064; font-size: .72rem; line-height: 1.4; }
 .staff-task-card > div { display: flex; justify-content: space-between; color: #247449; font-size: .7rem; font-weight: 850; text-transform: uppercase; }
 .staff-task-card h3 { margin: 10px 0 5px; }
 .staff-task-card p { color: #62756a; line-height: 1.5; }

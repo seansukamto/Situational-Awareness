@@ -187,6 +187,7 @@ def build_learned_policy(
     project_id: str,
     game_day: GameDay,
     metrics: GameDayLearningMetrics,
+    tasks: list[TaskInstance],
     previous: LearnedGamePolicy | None,
     created_at: datetime,
 ) -> LearnedGamePolicy:
@@ -198,10 +199,23 @@ def build_learned_policy(
             multipliers[domain] = min(1.1, round(multipliers[domain] + 0.05, 2))
         elif performance.released >= 3 and performance.completion_rate >= 0.9:
             multipliers[domain] = max(0.9, round(multipliers[domain] - 0.02, 2))
+    staff_domain_preferences = dict(previous.staff_domain_preferences) if previous else {}
+    completion_counts: dict[str, dict[SustainabilityDomain, int]] = {}
+    for task in tasks:
+        if task.status != TaskStatus.COMPLETED or not task.claimed_by_staff_id:
+            continue
+        staff_counts = completion_counts.setdefault(task.claimed_by_staff_id, {})
+        staff_counts[task.domain] = staff_counts.get(task.domain, 0) + 1
+    for staff_id, counts in completion_counts.items():
+        staff_domain_preferences[staff_id] = [
+            domain
+            for domain, _ in sorted(counts.items(), key=lambda item: (-item[1], str(item[0])))[:3]
+        ]
     context = [
         f"Previous day participation: {metrics.participating_staff}/{metrics.active_staff_profiles} active profiles.",
         f"Previous task completion: {metrics.tasks_completed}/{metrics.tasks_released} released tasks.",
         f"Previous task releases back to pool: {metrics.tasks_released_back}.",
+        f"Personalized domain history available for {len(staff_domain_preferences)} staff profiles.",
     ]
     return LearnedGamePolicy(
         version=f"staff-game-policy-{game_day.local_date.isoformat()}-{game_day.id[-6:]}",
@@ -210,6 +224,7 @@ def build_learned_policy(
         source_game_day_id=game_day.id,
         prompt_context=context,
         domain_point_multipliers=multipliers,
+        staff_domain_preferences=staff_domain_preferences,
         guardrails=POLICY_GUARDRAILS,
         created_at=created_at,
     )
@@ -226,7 +241,7 @@ def analyze_game_day(
     created_at = datetime.now(UTC)
     metrics = calculate_learning_metrics(tasks, events, staff)
     narrative, provider, model, fallback_used = _provider_narrative(project, metrics)
-    policy = build_learned_policy(project.id, game_day, metrics, previous_policy, created_at)
+    policy = build_learned_policy(project.id, game_day, metrics, tasks, previous_policy, created_at)
     analysis = GameDayAnalysis(
         id=f"game_analysis_{uuid4().hex[:12]}",
         project_id=project.id,

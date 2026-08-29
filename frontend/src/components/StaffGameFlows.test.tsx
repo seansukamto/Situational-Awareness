@@ -123,6 +123,8 @@ const task: TaskInstance = {
   version: 1,
   created_at: "2026-08-29T08:00:00Z",
   updated_at: "2026-08-29T08:00:00Z",
+  game_master_recommended: true,
+  recommendation_reason: "Matches your successful energy challenge history.",
 };
 
 function renderWithClient(node: React.ReactNode) {
@@ -209,6 +211,8 @@ describe("staff game flows", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enter the game" }));
 
     expect(await screen.findByRole("heading", { name: "Switch off unused display lights" })).toBeVisible();
+    expect(screen.getByText("✦ Game Master pick")).toBeVisible();
+    expect(screen.getByText("Matches your successful energy challenge history.")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Snatch task" }));
     expect(await screen.findByText("Reserved for you")).toBeVisible();
     await waitFor(() => expect(fetchMock.mock.calls.some(([input, init]) => (

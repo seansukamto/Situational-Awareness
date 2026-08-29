@@ -306,6 +306,8 @@ class TaskInstance(BaseModel):
     version: int = 0
     created_at: datetime
     updated_at: datetime
+    game_master_recommended: bool = False
+    recommendation_reason: str | None = None
 
 
 class TaskExceptionRequest(BaseModel):
@@ -387,6 +389,7 @@ class LearnedGamePolicy(BaseModel):
     prompt_template_version: str = GAME_LEARNING_PROMPT_VERSION
     prompt_context: list[str] = Field(default_factory=list, max_length=6)
     domain_point_multipliers: dict[SustainabilityDomain, float]
+    staff_domain_preferences: dict[str, list[SustainabilityDomain]] = Field(default_factory=dict)
     guardrails: list[str] = Field(default_factory=list, max_length=8)
     active: bool = True
     created_at: datetime

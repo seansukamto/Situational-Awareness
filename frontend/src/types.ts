@@ -527,6 +527,8 @@ export type TaskInstance = {
   version: number;
   created_at: string;
   updated_at: string;
+  game_master_recommended?: boolean;
+  recommendation_reason?: string | null;
 };
 
 export type LeaderboardEntry = {
@@ -589,6 +591,7 @@ export type LearnedGamePolicy = {
   prompt_template_version: string;
   prompt_context: string[];
   domain_point_multipliers: Record<SustainabilityDomain, number>;
+  staff_domain_preferences: Record<string, SustainabilityDomain[]>;
   guardrails: string[];
   active: boolean;
   created_at: string;
