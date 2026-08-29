@@ -19,12 +19,15 @@ export type Equipment = {
   power_kw_by_state: Record<EquipmentState, number>;
   criticality: "non_critical" | "operational" | "protected";
   customer_facing: boolean;
+  switchable_by_roles?: StaffRole[];
 };
+
+export type StaffRole = "manager" | "closing_associate" | "cashier";
 
 export type StaffAgent = {
   id: string;
   label: string;
-  role: "manager" | "closing_associate" | "cashier";
+  role: StaffRole;
   zone_id: string;
   position: Position;
   checklist_completed: boolean;
@@ -372,6 +375,182 @@ export type ChecklistSession = {
   safety_note: string;
   created_at: string;
   expires_at: string;
+};
+
+export type AvatarDefinition = {
+  id: string;
+  label: string;
+  model_file: string;
+  description: string;
+};
+
+export type StaffProfile = {
+  id: string;
+  project_id: string;
+  display_name: string;
+  normalized_name: string;
+  role: StaffRole;
+  avatar_id: string;
+  authorized_zone_ids: string[];
+  authorized_equipment_ids: string[];
+  default_shift_start: number;
+  default_shift_end: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StaffProfileCreate = {
+  display_name: string;
+  role: StaffRole;
+  avatar_id: string;
+  authorized_zone_ids: string[];
+  authorized_equipment_ids: string[];
+  default_shift_start: number;
+  default_shift_end: number;
+  join_pin: string;
+};
+
+export type SustainabilityDomain =
+  | "energy"
+  | "water"
+  | "waste"
+  | "food"
+  | "transport"
+  | "buying";
+
+export type VerificationMethod =
+  | "self_confirmation"
+  | "manager"
+  | "equipment_qr"
+  | "sensor";
+
+export type TaskTemplateCreate = {
+  label: string;
+  description: string;
+  domain: SustainabilityDomain;
+  zone_id: string | null;
+  equipment_id: string | null;
+  allowed_roles: StaffRole[];
+  allowed_staff_ids: string[];
+  available_from_minute: number;
+  available_until_minute: number;
+  expected_minutes: number;
+  base_points: number;
+  maximum_points: number;
+  verification_method: VerificationMethod;
+  estimated_impact_value: number | null;
+  estimated_impact_unit: string | null;
+};
+
+export type TaskTemplate = TaskTemplateCreate & {
+  id: string;
+  project_id: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameDayStatus = "scheduled" | "active" | "completed" | "failed";
+
+export type GameDay = {
+  id: string;
+  project_id: string;
+  local_date: string;
+  timezone: string;
+  start_minute: number;
+  end_minute: number;
+  status: GameDayStatus;
+  join_token: string;
+  policy_version: string;
+  scoring_version: string;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+};
+
+export type GameJoinSummary = {
+  game_day_id: string;
+  project_id: string;
+  store_name: string;
+  local_date: string;
+  start_minute: number;
+  end_minute: number;
+  status: GameDayStatus;
+  staff: Pick<StaffProfile, "id" | "display_name" | "role" | "avatar_id">[];
+};
+
+export type GameJoinResponse = {
+  session_token: string;
+  expires_at: string;
+  game_day: GameDay;
+  staff: StaffProfile;
+};
+
+export type TaskStatus =
+  | "scheduled"
+  | "available"
+  | "claimed"
+  | "completed"
+  | "expired"
+  | "cancelled"
+  | "exception";
+
+export type TaskInstance = {
+  id: string;
+  game_day_id: string;
+  project_id: string;
+  template_id: string;
+  label: string;
+  description: string;
+  domain: SustainabilityDomain;
+  zone_id: string | null;
+  equipment_id: string | null;
+  allowed_roles: StaffRole[];
+  allowed_staff_ids: string[];
+  available_from_minute: number;
+  available_until_minute: number;
+  expected_minutes: number;
+  base_points: number;
+  maximum_points: number;
+  verification_method: VerificationMethod;
+  estimated_impact_value: number | null;
+  estimated_impact_unit: string | null;
+  status: TaskStatus;
+  claimed_by_staff_id: string | null;
+  claimed_at: string | null;
+  reservation_expires_at: string | null;
+  completed_at: string | null;
+  verification_status: "pending" | "self_confirmed" | "verified" | "rejected";
+  points_awarded: number;
+  scoring_version: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LeaderboardEntry = {
+  rank: number;
+  staff_id: string;
+  display_name: string;
+  avatar_id: string;
+  points: number;
+  tasks_completed: number;
+};
+
+export type GameDayEvent = {
+  seq: number;
+  game_day_id: string;
+  occurred_at: string;
+  type: string;
+  message: string;
+  staff_id: string | null;
+  task_instance_id: string | null;
+  zone_id: string | null;
+  target_id: string | null;
+  source: "staff" | "manager" | "rules" | "ai" | "sensor";
+  evidence_kind: "measured" | "derived" | "assumed" | "simulated";
+  data: Record<string, unknown>;
 };
 
 export type WorldState = {

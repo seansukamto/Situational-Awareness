@@ -11,10 +11,12 @@ import {
   listSimulationRuns,
 } from "./api";
 import { ConfigurationPage } from "./components/ConfigurationPage";
+import { GameControlPage } from "./components/GameControlPage";
 import { ImpactPanel } from "./components/ImpactPanel";
 import { ReplayTimeline } from "./components/ReplayTimeline";
 import { RunHistory } from "./components/RunHistory";
 import { StaffHandoff } from "./components/StaffHandoff";
+import { StaffConfigurationPage } from "./components/StaffConfigurationPage";
 import type {
   PersistedSimulationRun,
   SimulationEvent,
@@ -80,7 +82,7 @@ export default function App() {
   const [confirmedBill, setConfirmedBill] = useState<UtilityBill | null>(null);
   const [showHandoff, setShowHandoff] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [activeView, setActiveView] = useState<"simulation" | "configuration">("simulation");
+  const [activeView, setActiveView] = useState<"simulation" | "game" | "staff" | "configuration">("game");
 
   const demo = useQuery({ queryKey: ["demo"], queryFn: bootstrapDemo, retry: 1 });
   const aiStatus = useQuery({ queryKey: ["ai-status"], queryFn: fetchAIStatus, retry: 1 });
@@ -211,11 +213,21 @@ export default function App() {
   const openSimulationSection = (sectionId: "simulation" | "impact" | "evidence") => {
     setActiveView("simulation");
     window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => document.getElementById(sectionId)?.scrollIntoView());
+      window.requestAnimationFrame(() => {
+        const section = document.getElementById(sectionId);
+        if (typeof section?.scrollIntoView === "function") section.scrollIntoView();
+      });
     });
   };
 
   const completedSelection = Boolean(comparison && replayStore && world);
+  const viewTitle = activeView === "game"
+    ? "Live staff game"
+    : activeView === "staff"
+      ? "Staff roster"
+      : activeView === "configuration"
+        ? "Store configuration"
+        : "Closing transition simulator";
 
   return (
     <div className="product-shell">
@@ -225,10 +237,12 @@ export default function App() {
           <div><strong>Situational</strong><span>Awareness</span></div>
         </div>
         <nav aria-label="Primary navigation">
-          <button type="button" aria-label="Simulation" className={activeView === "simulation" ? "active" : ""} onClick={() => openSimulationSection("simulation")}><i>01</i><span>Simulation</span></button>
-          <button type="button" aria-label="Impact" disabled={!completedSelection} onClick={() => openSimulationSection("impact")}><i>02</i><span>Impact</span></button>
-          <button type="button" aria-label="Evidence" disabled={!completedSelection} onClick={() => openSimulationSection("evidence")}><i>03</i><span>Evidence</span></button>
-          <button type="button" className={`nav-configuration ${activeView === "configuration" ? "active" : ""}`} aria-current={activeView === "configuration" ? "page" : undefined} onClick={() => { setActiveView("configuration"); window.scrollTo({ top: 0, behavior: "smooth" }); }}><i>04</i><span>Configuration</span></button>
+          <button type="button" aria-label="Live game" className={activeView === "game" ? "active" : ""} onClick={() => { setActiveView("game"); window.scrollTo({ top: 0, behavior: "smooth" }); }}><i>01</i><span>Live game</span></button>
+          <button type="button" aria-label="Staff" className={activeView === "staff" ? "active" : ""} onClick={() => { setActiveView("staff"); window.scrollTo({ top: 0, behavior: "smooth" }); }}><i>02</i><span>Staff</span></button>
+          <button type="button" aria-label="Simulation" className={activeView === "simulation" ? "active" : ""} onClick={() => openSimulationSection("simulation")}><i>03</i><span>Simulation</span></button>
+          <button type="button" aria-label="Impact" disabled={!completedSelection} onClick={() => openSimulationSection("impact")}><i>04</i><span>Impact</span></button>
+          <button type="button" aria-label="Evidence" disabled={!completedSelection} onClick={() => openSimulationSection("evidence")}><i>05</i><span>Evidence</span></button>
+          <button type="button" className={`nav-configuration ${activeView === "configuration" ? "active" : ""}`} aria-current={activeView === "configuration" ? "page" : undefined} onClick={() => { setActiveView("configuration"); window.scrollTo({ top: 0, behavior: "smooth" }); }}><i>06</i><span>Configuration</span></button>
         </nav>
         <div className="side-context">
           <span>Project</span>
@@ -242,12 +256,10 @@ export default function App() {
         <header className="workspace-header">
           <div>
             <span className="breadcrumb">Projects / {project.name}</span>
-            <h1>{activeView === "configuration" ? "Store configuration" : "Closing transition simulator"}</h1>
+            <h1>{viewTitle}</h1>
           </div>
           <div className="header-actions">
-            {activeView === "configuration" ? (
-              <button type="button" className="back-simulation-button" onClick={() => openSimulationSection("simulation")}><span>←</span> Back to simulation</button>
-            ) : (
+            {activeView === "simulation" ? (
               <>
                 {persistedRun && <span className="header-run-badge">Run {shortRunId(persistedRun.id)}</span>}
                 <button type="button" className="handoff-button" disabled={handoff.isPending} onClick={() => handoff.mutate()}>
@@ -257,11 +269,17 @@ export default function App() {
                   {exporting ? "Preparing…" : "Export brief"}
                 </button>
               </>
+            ) : (
+              <button type="button" className="back-simulation-button" onClick={() => openSimulationSection("simulation")}><span>→</span> Historical simulation</button>
             )}
           </div>
         </header>
 
-        {activeView === "configuration" ? (
+        {activeView === "game" ? (
+          <GameControlPage project={project} />
+        ) : activeView === "staff" ? (
+          <StaffConfigurationPage project={project} />
+        ) : activeView === "configuration" ? (
           <ConfigurationPage
             project={project}
             bills={confirmedBill ? [confirmedBill, ...bills] : bills}

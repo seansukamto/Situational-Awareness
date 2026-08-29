@@ -135,7 +135,7 @@ afterEach(() => {
 });
 
 describe("application startup", () => {
-  it("loads run history without generating simulations or analyses", async () => {
+  it("opens the live staff game without generating simulations or analyses", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/api/demo/bootstrap")) {
@@ -156,6 +156,16 @@ describe("application startup", () => {
           headers: { "Content-Type": "application/json" },
         });
       }
+      if (
+        url.endsWith("/api/projects/project_demo/game-days")
+        || url.endsWith("/api/projects/project_demo/task-templates")
+        || url.endsWith("/api/projects/project_demo/staff")
+      ) {
+        return new Response("[]", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
       return new Response("Not found", { status: 404 });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -169,8 +179,10 @@ describe("application startup", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByRole("heading", { name: "No simulation runs yet" })).toBeVisible();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(await screen.findByRole("heading", { name: "Run today’s sustainability game." })).toBeVisible();
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => (
+      String(input).endsWith("/api/projects/project_demo/staff")
+    ))).toBe(true));
 
     const requests = fetchMock.mock.calls.map(([input, init]) => ({
       url: String(input),
@@ -219,6 +231,16 @@ describe("application startup", () => {
           headers: { "Content-Type": "application/json" },
         });
       }
+      if (
+        url.endsWith("/api/projects/project_demo/game-days")
+        || url.endsWith("/api/projects/project_demo/task-templates")
+        || url.endsWith("/api/projects/project_demo/staff")
+      ) {
+        return new Response("[]", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
       return new Response("Not found", { status: 404 });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -232,6 +254,8 @@ describe("application startup", () => {
       </QueryClientProvider>,
     );
 
+    expect(await screen.findByRole("heading", { name: "Run today’s sustainability game." })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Simulation" }));
     expect(await screen.findByRole("heading", { name: "Run OLD00001" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: /Run new simulation/i }));
     const dialog = await screen.findByRole("dialog", { name: "Run simulation" });

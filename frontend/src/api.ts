@@ -16,6 +16,17 @@ import type {
   SimulationRunSummary,
   SimulationRunCreate,
   UtilityBill,
+  AvatarDefinition,
+  GameDay,
+  GameDayEvent,
+  GameJoinResponse,
+  GameJoinSummary,
+  LeaderboardEntry,
+  StaffProfile,
+  StaffProfileCreate,
+  TaskInstance,
+  TaskTemplate,
+  TaskTemplateCreate,
 } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
@@ -172,4 +183,146 @@ export async function downloadRunDecisionBrief(projectId: string, runId: string)
   const response = await fetch(`${API_URL}/api/projects/${projectId}/runs/${runId}/report.md`);
   if (!response.ok) throw new Error("Decision brief could not be generated");
   return response.text();
+}
+
+export function listAvatars(): Promise<AvatarDefinition[]> {
+  return request("/api/avatars");
+}
+
+export function listStaffProfiles(projectId: string): Promise<StaffProfile[]> {
+  return request(`/api/projects/${projectId}/staff`);
+}
+
+export function createStaffProfile(
+  projectId: string,
+  values: StaffProfileCreate,
+): Promise<StaffProfile> {
+  return request(`/api/projects/${projectId}/staff`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+}
+
+export function updateStaffProfile(
+  projectId: string,
+  staffId: string,
+  values: Partial<Omit<StaffProfile, "id" | "project_id" | "created_at" | "updated_at">>,
+): Promise<StaffProfile> {
+  return request(`/api/projects/${projectId}/staff/${staffId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+}
+
+export function resetStaffPin(
+  projectId: string,
+  staffId: string,
+  joinPin: string,
+): Promise<StaffProfile> {
+  return request(`/api/projects/${projectId}/staff/${staffId}/reset-pin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ join_pin: joinPin }),
+  });
+}
+
+export function listTaskTemplates(projectId: string): Promise<TaskTemplate[]> {
+  return request(`/api/projects/${projectId}/task-templates`);
+}
+
+export function createTaskTemplate(
+  projectId: string,
+  values: TaskTemplateCreate,
+): Promise<TaskTemplate> {
+  return request(`/api/projects/${projectId}/task-templates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+}
+
+export function listGameDays(projectId: string): Promise<GameDay[]> {
+  return request(`/api/projects/${projectId}/game-days`);
+}
+
+export function createGameDay(projectId: string): Promise<GameDay> {
+  return request(`/api/projects/${projectId}/game-days`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+}
+
+export function startGameDay(projectId: string, gameDayId: string): Promise<GameDay> {
+  return request(`/api/projects/${projectId}/game-days/${gameDayId}/start`, {
+    method: "POST",
+  });
+}
+
+export function closeGameDay(projectId: string, gameDayId: string): Promise<GameDay> {
+  return request(`/api/projects/${projectId}/game-days/${gameDayId}/close`, {
+    method: "POST",
+  });
+}
+
+export function fetchGameDayEvents(
+  projectId: string,
+  gameDayId: string,
+): Promise<GameDayEvent[]> {
+  return request(`/api/projects/${projectId}/game-days/${gameDayId}/events`);
+}
+
+export function fetchManagerLeaderboard(
+  projectId: string,
+  gameDayId: string,
+): Promise<LeaderboardEntry[]> {
+  return request(`/api/projects/${projectId}/game-days/${gameDayId}/leaderboard`);
+}
+
+export function inspectGameJoin(joinToken: string): Promise<GameJoinSummary> {
+  return request(`/api/game/join/${joinToken}`);
+}
+
+export function joinStaffGame(
+  joinToken: string,
+  staffId: string,
+  joinPin: string,
+): Promise<GameJoinResponse> {
+  return request(`/api/game/join/${joinToken}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ staff_id: staffId, join_pin: joinPin }),
+  });
+}
+
+function gameRequest<T>(path: string, sessionToken: string, init?: RequestInit): Promise<T> {
+  return request(path, {
+    ...init,
+    headers: {
+      ...init?.headers,
+      Authorization: `Bearer ${sessionToken}`,
+    },
+  });
+}
+
+export function listGameTasks(sessionToken: string): Promise<TaskInstance[]> {
+  return gameRequest("/api/game/tasks", sessionToken);
+}
+
+export function claimGameTask(sessionToken: string, taskId: string): Promise<TaskInstance> {
+  return gameRequest(`/api/game/tasks/${taskId}/claim`, sessionToken, { method: "POST" });
+}
+
+export function releaseGameTask(sessionToken: string, taskId: string): Promise<TaskInstance> {
+  return gameRequest(`/api/game/tasks/${taskId}/release`, sessionToken, { method: "POST" });
+}
+
+export function completeGameTask(sessionToken: string, taskId: string): Promise<TaskInstance> {
+  return gameRequest(`/api/game/tasks/${taskId}/complete`, sessionToken, { method: "POST" });
+}
+
+export function fetchStaffLeaderboard(sessionToken: string): Promise<LeaderboardEntry[]> {
+  return gameRequest("/api/game/leaderboard", sessionToken);
 }
