@@ -1,0 +1,14 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules
+dist/
+.vite/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv
+*.tsbuildinfo
+*.sqlite3
+uploads/
