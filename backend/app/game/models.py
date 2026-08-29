@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from ..agents.models import AgentMode
 from ..simulation.models import AgentRole
 
 
@@ -345,3 +346,69 @@ class LeaderboardEntry(BaseModel):
     avatar_id: str
     points: int
     tasks_completed: int
+
+
+GAME_LEARNING_PROMPT_VERSION = "staff-game-learning-2026.08"
+
+
+class DomainPerformance(BaseModel):
+    released: int = Field(ge=0)
+    claimed: int = Field(ge=0)
+    completed: int = Field(ge=0)
+    completion_rate: float = Field(ge=0, le=1)
+    estimated_impact: float = Field(ge=0)
+    impact_unit: str | None = None
+
+
+class GameDayLearningMetrics(BaseModel):
+    active_staff_profiles: int = Field(ge=0)
+    participating_staff: int = Field(ge=0)
+    tasks_released: int = Field(ge=0)
+    tasks_claimed: int = Field(ge=0)
+    tasks_completed: int = Field(ge=0)
+    tasks_released_back: int = Field(ge=0)
+    completion_rate: float = Field(ge=0, le=1)
+    total_points: int = Field(ge=0)
+    estimated_impact_total: float = Field(ge=0)
+    domain_performance: dict[SustainabilityDomain, DomainPerformance]
+
+
+class GameLearningNarrative(BaseModel):
+    summary: str = Field(min_length=1, max_length=700)
+    patterns: list[str] = Field(default_factory=list, max_length=6)
+    recommendations: list[str] = Field(default_factory=list, max_length=6)
+
+
+class LearnedGamePolicy(BaseModel):
+    version: str = Field(min_length=1, max_length=120)
+    project_id: str
+    previous_version: str | None = None
+    source_game_day_id: str
+    prompt_template_version: str = GAME_LEARNING_PROMPT_VERSION
+    prompt_context: list[str] = Field(default_factory=list, max_length=6)
+    domain_point_multipliers: dict[SustainabilityDomain, float]
+    guardrails: list[str] = Field(default_factory=list, max_length=8)
+    active: bool = True
+    created_at: datetime
+
+    @model_validator(mode="after")
+    def validate_multipliers(self):
+        for multiplier in self.domain_point_multipliers.values():
+            if not 0.9 <= multiplier <= 1.1:
+                raise ValueError("Domain point multipliers must remain between 0.9 and 1.1")
+        return self
+
+
+class GameDayAnalysis(BaseModel):
+    id: str
+    project_id: str
+    game_day_id: str
+    analyzer_mode: AgentMode
+    provider: str
+    model: str
+    fallback_used: bool = False
+    prompt_template_version: str = GAME_LEARNING_PROMPT_VERSION
+    metrics: GameDayLearningMetrics
+    narrative: GameLearningNarrative
+    learned_policy_version: str
+    created_at: datetime

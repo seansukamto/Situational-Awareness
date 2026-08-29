@@ -85,8 +85,15 @@ rates in `.env.example` are configured.
   cost, or assumption data.
 - The live staff-game API supports project-scoped profiles, local 3D avatars,
   dated QR sessions, an atomically claimed task marketplace, deterministic
-  individual points, and a sequence-numbered leaderboard ledger. The manager
-  interface for this flow is being built on the same safety boundary.
+  individual points, and a sequence-numbered leaderboard ledger. Managers can
+  configure the roster, launch the QR session, watch the leaderboard, and
+  replay the recorded staff interactions across the operating day with no
+  simulated consumers mixed into the evidence.
+- Closing a game day produces a structured AI analysis with deterministic
+  fallback and an immutable learned-policy version. Only server-validated
+  domain point multipliers between `0.90x` and `1.10x` may carry into the next
+  day; protected loads, staff authority, and employment decisions remain
+  permanent guardrails outside the learning loop.
 - Protected equipment is excluded from the staff checklist. The public task
   API accepts only task IDs already authorized in that checklist session.
 - Event explanations cite the exact event sequence, time, transition, and

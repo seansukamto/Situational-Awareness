@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi.testclient import TestClient
 
@@ -167,6 +167,52 @@ def test_game_day_task_marketplace_scoring_and_event_ledger(tmp_path):
         assert client.post(
             f"/api/projects/{project_id}/game-days/{day['id']}/close"
         ).json()["status"] == "completed"
+
+
+def test_end_of_day_analysis_versions_and_applies_a_bounded_policy(tmp_path):
+    repository = SQLiteRepository(tmp_path / "game-learning.sqlite3")
+    app.state.repository = repository
+
+    with TestClient(app) as client:
+        project_id = client.post("/api/demo/bootstrap").json()["project"]["id"]
+        create_staff(client, project_id, "Ava Lim")
+        create_template(client, project_id)
+        day = create_started_day(client, project_id)
+
+        closed = client.post(
+            f"/api/projects/{project_id}/game-days/{day['id']}/close"
+        )
+        assert closed.status_code == 200
+        analysis = client.get(
+            f"/api/projects/{project_id}/game-days/{day['id']}/analysis"
+        )
+        assert analysis.status_code == 200
+        assert analysis.json()["analyzer_mode"] == "deterministic"
+        assert analysis.json()["metrics"]["tasks_released"] == 1
+        assert analysis.json()["metrics"]["tasks_completed"] == 0
+        assert analysis.json()["metrics"]["domain_performance"]["energy"]["completion_rate"] == 0
+
+        policies = client.get(f"/api/projects/{project_id}/game-policies").json()
+        assert len(policies) == 1
+        assert policies[0]["active"] is True
+        assert policies[0]["domain_point_multipliers"]["energy"] == 1.05
+        assert all(0.9 <= value <= 1.1 for value in policies[0]["domain_point_multipliers"].values())
+
+        tomorrow = date.fromisoformat(day["local_date"]) + timedelta(days=1)
+        next_day = client.post(
+            f"/api/projects/{project_id}/game-days",
+            json={"local_date": tomorrow.isoformat(), "start_minute": 0, "end_minute": 1440},
+        ).json()
+        assert next_day["policy_version"] == policies[0]["version"]
+        assert client.post(
+            f"/api/projects/{project_id}/game-days/{next_day['id']}/start"
+        ).status_code == 200
+        next_tasks = repository.list_task_instances(next_day["id"])
+        assert next_tasks[0].base_points == 52
+        assert next_tasks[0].maximum_points == 105
+
+        client.post(f"/api/projects/{project_id}/game-days/{day['id']}/close")
+        assert len(client.get(f"/api/projects/{project_id}/game-policies").json()) == 1
 
 
 def test_task_claim_is_atomic_and_only_one_staff_wins(tmp_path):

@@ -11,11 +11,13 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from ..projects.models import Project
 from ..projects.repository import SQLiteRepository
+from .analysis import analyze_game_day
 from .models import (
     AVATAR_CATALOG,
     AVATAR_IDS,
     AvatarDefinition,
     GameDay,
+    GameDayAnalysis,
     GameDayCreate,
     GameDayEvent,
     GameDayStatus,
@@ -26,6 +28,7 @@ from .models import (
     GameJoinSummary,
     GameStaffSession,
     LeaderboardEntry,
+    LearnedGamePolicy,
     StaffPinReset,
     StaffProfile,
     StaffProfileCreate,
@@ -339,6 +342,7 @@ def create_game_day(
     )
     if end_minute <= start_minute:
         raise HTTPException(status_code=422, detail="Game day end must be after start")
+    learned_policy = repo.get_active_game_policy(project_id)
     game_day = GameDay(
         id=f"day_{uuid4().hex[:12]}",
         project_id=project_id,
@@ -348,6 +352,7 @@ def create_game_day(
         end_minute=end_minute,
         status=GameDayStatus.SCHEDULED,
         join_token=secrets.token_urlsafe(18),
+        policy_version=learned_policy.version if learned_policy else "staff-game-policy-2026.08",
         created_at=now,
     )
     try:
@@ -401,6 +406,7 @@ def start_game_day(
         raise HTTPException(status_code=409, detail="Only a scheduled game day can start")
     now = datetime.now(UTC)
     templates = repo.list_task_templates(project_id, active_only=True)
+    learned_policy = repo.get_game_policy(project_id, game_day.policy_version)
     tasks = [
         TaskInstance(
             id=f"task_{uuid4().hex[:12]}",
@@ -417,8 +423,14 @@ def start_game_day(
             available_from_minute=template.available_from_minute,
             available_until_minute=template.available_until_minute,
             expected_minutes=template.expected_minutes,
-            base_points=template.base_points,
-            maximum_points=template.maximum_points,
+            base_points=max(1, round(template.base_points * (
+                learned_policy.domain_point_multipliers.get(template.domain, 1.0)
+                if learned_policy else 1.0
+            ))),
+            maximum_points=max(1, round(template.maximum_points * (
+                learned_policy.domain_point_multipliers.get(template.domain, 1.0)
+                if learned_policy else 1.0
+            ))),
             verification_method=template.verification_method,
             estimated_impact_value=template.estimated_impact_value,
             estimated_impact_unit=template.estimated_impact_unit,
@@ -444,10 +456,34 @@ def start_game_day(
             message="The staff sustainability game started.",
             source="manager",
             evidence_kind="measured",
-            data={"task_count": len(tasks)},
+            data={
+                "task_count": len(tasks),
+                "policy_version": game_day.policy_version,
+                "learned_prompt_context": learned_policy.prompt_context if learned_policy else [],
+            },
         )
     )
     return started
+
+
+def ensure_game_day_analysis(
+    repo: SQLiteRepository,
+    project: Project,
+    game_day: GameDay,
+) -> GameDayAnalysis:
+    existing = repo.get_game_day_analysis(project.id, game_day.id)
+    if existing is not None:
+        return existing
+    analysis, policy = analyze_game_day(
+        project,
+        game_day,
+        repo.list_task_instances(game_day.id),
+        repo.list_game_day_events(game_day.id),
+        repo.list_staff_profiles(project.id),
+        repo.get_active_game_policy(project.id),
+    )
+    stored, _ = repo.save_game_learning(analysis, policy)
+    return stored
 
 
 @router.post(
@@ -459,9 +495,10 @@ def close_game_day(
     game_day_id: str,
     repo: SQLiteRepository = Depends(repository),
 ) -> GameDay:
-    require_project(repo, project_id)
+    project = require_project(repo, project_id)
     game_day = require_game_day(repo, project_id, game_day_id)
     if game_day.status == GameDayStatus.COMPLETED:
+        ensure_game_day_analysis(repo, project, game_day)
         return game_day
     if game_day.status != GameDayStatus.ACTIVE:
         raise HTTPException(status_code=409, detail="Only an active game day can close")
@@ -481,7 +518,37 @@ def close_game_day(
             evidence_kind="measured",
         )
     )
+    ensure_game_day_analysis(repo, project, completed)
     return completed
+
+
+@router.get(
+    "/projects/{project_id}/game-days/{game_day_id}/analysis",
+    response_model=GameDayAnalysis,
+)
+def get_game_day_analysis(
+    project_id: str,
+    game_day_id: str,
+    repo: SQLiteRepository = Depends(repository),
+) -> GameDayAnalysis:
+    require_project(repo, project_id)
+    require_game_day(repo, project_id, game_day_id)
+    analysis = repo.get_game_day_analysis(project_id, game_day_id)
+    if analysis is None:
+        raise HTTPException(status_code=404, detail="Game day analysis is not available until close")
+    return analysis
+
+
+@router.get(
+    "/projects/{project_id}/game-policies",
+    response_model=list[LearnedGamePolicy],
+)
+def list_game_policies(
+    project_id: str,
+    repo: SQLiteRepository = Depends(repository),
+) -> list[LearnedGamePolicy]:
+    require_project(repo, project_id)
+    return repo.list_game_policies(project_id)
 
 
 def game_join_summary(

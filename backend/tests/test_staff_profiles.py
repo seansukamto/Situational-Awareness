@@ -36,7 +36,7 @@ def test_staff_schema_migration_is_idempotent(tmp_path):
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'staff_profiles'"
         ).fetchone()
 
-    assert versions == [(1,), (2,)]
+    assert versions == [(1,), (2,), (3,)]
     assert staff_table == ("staff_profiles",)
 
 

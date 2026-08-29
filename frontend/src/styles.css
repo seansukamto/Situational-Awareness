@@ -61,6 +61,54 @@
   .game-replay-controls button:last-child { grid-column: 1 / -1; }
 }
 
+/* Auditable end-of-day learning */
+.game-learning-panel { margin-top: 22px; border: 1px solid #dce4df; background: #fff; }
+.game-learning-loading { padding: 28px; color: #68756e; font-size: 13px; }
+.game-learning-heading { display: flex; justify-content: space-between; gap: 24px; padding: 24px 26px; border-bottom: 1px solid #dce4df; }
+.game-learning-heading > div:first-child { max-width: 720px; }
+.game-learning-heading > div:first-child > span, .game-learning-body article > span, .game-policy-details div > span { color: #34805a; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.game-learning-heading h2 { margin: 6px 0 8px; color: #12221a; font-size: 25px; }
+.game-learning-heading p { margin: 0; color: #5c6862; font-size: 13px; line-height: 1.55; }
+.game-learning-heading > div:last-child { display: grid; align-content: center; gap: 3px; min-width: 220px; text-align: right; }
+.game-learning-heading > div:last-child small { color: #26754d; font-size: 10px; font-weight: 750; text-transform: uppercase; }
+.game-learning-heading > div:last-child strong { color: #1c3528; font: 700 11px ui-monospace, monospace; }
+.game-learning-heading > div:last-child span { color: #8b9690; font: 10px ui-monospace, monospace; }
+.game-learning-metrics { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid #dce4df; }
+.game-learning-metrics > div { display: grid; gap: 2px; padding: 18px 22px; border-right: 1px solid #e2e8e4; }
+.game-learning-metrics > div:last-child { border-right: 0; }
+.game-learning-metrics span { color: #79857e; font-size: 9px; text-transform: uppercase; }
+.game-learning-metrics strong { color: #183c2b; font-size: 24px; }
+.game-learning-metrics small { color: #6f7b74; font-size: 10px; }
+.game-learning-body { display: grid; grid-template-columns: 1fr 1fr 1.25fr; }
+.game-learning-body article { padding: 22px 24px; border-right: 1px solid #e2e8e4; }
+.game-learning-body article:last-child { border-right: 0; }
+.game-learning-body ul, .game-policy-details ul { display: grid; gap: 9px; margin: 14px 0 0; padding-left: 17px; color: #4d5d54; font-size: 11px; line-height: 1.5; }
+.game-policy-audit > p { color: #637169; font-size: 10px; line-height: 1.5; }
+.game-policy-audit > div { border-top: 1px solid #e2e8e4; }
+.game-policy-audit > div > div { display: grid; grid-template-columns: 80px 1fr auto; gap: 8px; padding: 8px 0; border-bottom: 1px solid #edf0ee; font-size: 10px; }
+.game-policy-audit b { color: #283b31; text-transform: capitalize; }
+.game-policy-audit span { color: #7c8881; }
+.game-policy-audit strong { color: #486053; font: 700 10px ui-monospace, monospace; }
+.game-policy-audit strong.adjusted { color: #16784f; }
+.game-policy-details { border-top: 1px solid #dce4df; }
+.game-policy-details summary { cursor: pointer; padding: 15px 24px; color: #315741; font-size: 11px; font-weight: 750; }
+.game-policy-details[open] summary { border-bottom: 1px solid #e2e8e4; }
+.game-policy-details > div { display: inline-block; width: 50%; padding: 20px 24px; vertical-align: top; }
+
+@media (max-width: 900px) {
+  .game-learning-metrics { grid-template-columns: 1fr 1fr; }
+  .game-learning-metrics > div:nth-child(2) { border-right: 0; }
+  .game-learning-metrics > div:nth-child(-n+2) { border-bottom: 1px solid #e2e8e4; }
+  .game-learning-body { grid-template-columns: 1fr; }
+  .game-learning-body article { border-right: 0; border-bottom: 1px solid #e2e8e4; }
+}
+
+@media (max-width: 680px) {
+  .game-learning-heading { display: grid; padding: 20px 17px; }
+  .game-learning-heading > div:last-child { text-align: left; }
+  .game-policy-details > div { display: block; width: 100%; }
+}
+
 /* Live staff sustainability game */
 .game-control-page,
 .staff-config-page { padding: 4px 0 72px; }

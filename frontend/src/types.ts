@@ -553,6 +553,62 @@ export type GameDayEvent = {
   data: Record<string, unknown>;
 };
 
+export type DomainPerformance = {
+  released: number;
+  claimed: number;
+  completed: number;
+  completion_rate: number;
+  estimated_impact: number;
+  impact_unit: string | null;
+};
+
+export type GameDayLearningMetrics = {
+  active_staff_profiles: number;
+  participating_staff: number;
+  tasks_released: number;
+  tasks_claimed: number;
+  tasks_completed: number;
+  tasks_released_back: number;
+  completion_rate: number;
+  total_points: number;
+  estimated_impact_total: number;
+  domain_performance: Partial<Record<SustainabilityDomain, DomainPerformance>>;
+};
+
+export type GameLearningNarrative = {
+  summary: string;
+  patterns: string[];
+  recommendations: string[];
+};
+
+export type LearnedGamePolicy = {
+  version: string;
+  project_id: string;
+  previous_version: string | null;
+  source_game_day_id: string;
+  prompt_template_version: string;
+  prompt_context: string[];
+  domain_point_multipliers: Record<SustainabilityDomain, number>;
+  guardrails: string[];
+  active: boolean;
+  created_at: string;
+};
+
+export type GameDayAnalysis = {
+  id: string;
+  project_id: string;
+  game_day_id: string;
+  analyzer_mode: AgentMode;
+  provider: string;
+  model: string;
+  fallback_used: boolean;
+  prompt_template_version: string;
+  metrics: GameDayLearningMetrics;
+  narrative: GameLearningNarrative;
+  learned_policy_version: string;
+  created_at: string;
+};
+
 export type WorldState = {
   staffPositions: Record<string, Position>;
   customerPositions: Record<string, Position>;

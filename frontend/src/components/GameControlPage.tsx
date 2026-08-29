@@ -6,15 +6,18 @@ import {
   closeGameDay,
   createGameDay,
   createTaskTemplate,
+  fetchGameDayAnalysis,
   fetchGameDayEvents,
   fetchManagerLeaderboard,
   listGameDays,
+  listGamePolicies,
   listStaffProfiles,
   listTaskTemplates,
   startGameDay,
 } from "../api";
 import type { Project, StaffRole, TaskTemplateCreate } from "../types";
 import { GameDayReplay } from "./GameDayReplay";
+import { GameLearningPanel } from "./GameLearningPanel";
 
 
 function roleLabel(role: StaffRole): string {
@@ -50,10 +53,22 @@ export function GameControlPage({ project }: { project: Project }) {
     enabled: Boolean(currentDay),
     refetchInterval: currentDay?.status === "active" ? 4000 : false,
   });
+  const analysis = useQuery({
+    queryKey: ["game-analysis", project.id, currentDay?.id],
+    queryFn: () => fetchGameDayAnalysis(project.id, currentDay!.id),
+    enabled: currentDay?.status === "completed",
+    retry: false,
+  });
+  const policies = useQuery({
+    queryKey: ["game-policies", project.id],
+    queryFn: () => listGamePolicies(project.id),
+  });
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["game-days", project.id] });
     void queryClient.invalidateQueries({ queryKey: ["game-events", project.id] });
     void queryClient.invalidateQueries({ queryKey: ["game-leaderboard", project.id] });
+    void queryClient.invalidateQueries({ queryKey: ["game-analysis", project.id] });
+    void queryClient.invalidateQueries({ queryKey: ["game-policies", project.id] });
   };
   const createDayMutation = useMutation({ mutationFn: () => createGameDay(project.id), onSuccess: refresh });
   const startDayMutation = useMutation({ mutationFn: (id: string) => startGameDay(project.id, id), onSuccess: refresh });
@@ -116,6 +131,14 @@ export function GameControlPage({ project }: { project: Project }) {
           gameDay={currentDay}
           staff={staff.data ?? []}
           events={events.data ?? []}
+        />
+      )}
+
+      {currentDay?.status === "completed" && (
+        <GameLearningPanel
+          analysis={analysis.data}
+          policy={policies.data?.find((policy) => policy.version === analysis.data?.learned_policy_version)}
+          loading={analysis.isLoading}
         />
       )}
 

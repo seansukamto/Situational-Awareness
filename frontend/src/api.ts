@@ -18,10 +18,12 @@ import type {
   UtilityBill,
   AvatarDefinition,
   GameDay,
+  GameDayAnalysis,
   GameDayEvent,
   GameJoinResponse,
   GameJoinSummary,
   LeaderboardEntry,
+  LearnedGamePolicy,
   StaffProfile,
   StaffProfileCreate,
   TaskInstance,
@@ -279,6 +281,17 @@ export function fetchManagerLeaderboard(
   gameDayId: string,
 ): Promise<LeaderboardEntry[]> {
   return request(`/api/projects/${projectId}/game-days/${gameDayId}/leaderboard`);
+}
+
+export function fetchGameDayAnalysis(
+  projectId: string,
+  gameDayId: string,
+): Promise<GameDayAnalysis> {
+  return request(`/api/projects/${projectId}/game-days/${gameDayId}/analysis`);
+}
+
+export function listGamePolicies(projectId: string): Promise<LearnedGamePolicy[]> {
+  return request(`/api/projects/${projectId}/game-policies`);
 }
 
 export function inspectGameJoin(joinToken: string): Promise<GameJoinSummary> {

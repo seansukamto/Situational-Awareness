@@ -9,9 +9,11 @@ from uuid import uuid4
 from ..agents.models import AgentIntelligenceSettings
 from ..game.models import (
     GameDay,
+    GameDayAnalysis,
     GameDayEvent,
     GameEventType,
     GameStaffSession,
+    LearnedGamePolicy,
     ScoreEntry,
     StaffProfile,
     TaskInstance,
@@ -117,6 +119,7 @@ class SQLiteRepository:
                 )
             self._migrate_live_game_staff(connection)
             self._migrate_live_game_days(connection)
+            self._migrate_game_learning(connection)
 
     @staticmethod
     def _migrate_live_game_staff(connection: sqlite3.Connection) -> None:
@@ -237,6 +240,43 @@ class SQLiteRepository:
             );
             CREATE INDEX IF NOT EXISTS idx_score_entries_day_staff
             ON score_entries(game_day_id, staff_id);
+            """
+        )
+        connection.execute(
+            "INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)",
+            (version, _now().isoformat()),
+        )
+
+    @staticmethod
+    def _migrate_game_learning(connection: sqlite3.Connection) -> None:
+        version = 3
+        applied = connection.execute(
+            "SELECT 1 FROM schema_versions WHERE version = ?", (version,)
+        ).fetchone()
+        if applied:
+            return
+        connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS game_day_analyses (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                game_day_id TEXT NOT NULL UNIQUE REFERENCES game_days(id) ON DELETE CASCADE,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_game_day_analyses_project_created
+            ON game_day_analyses(project_id, created_at DESC);
+
+            CREATE TABLE IF NOT EXISTS learned_game_policies (
+                version TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                source_game_day_id TEXT NOT NULL UNIQUE REFERENCES game_days(id) ON DELETE CASCADE,
+                active INTEGER NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_learned_game_policies_project_active
+            ON learned_game_policies(project_id, active, created_at DESC);
             """
         )
         connection.execute(
@@ -1006,6 +1046,122 @@ class SQLiteRepository:
             ).fetchall()
         return [ScoreEntry.model_validate_json(row["payload_json"]) for row in rows]
 
+    def get_game_day_analysis(
+        self,
+        project_id: str,
+        game_day_id: str,
+    ) -> GameDayAnalysis | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT payload_json FROM game_day_analyses
+                WHERE project_id = ? AND game_day_id = ?
+                """,
+                (project_id, game_day_id),
+            ).fetchone()
+        return None if row is None else GameDayAnalysis.model_validate_json(row["payload_json"])
+
+    def get_active_game_policy(self, project_id: str) -> LearnedGamePolicy | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT payload_json FROM learned_game_policies
+                WHERE project_id = ? AND active = 1
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (project_id,),
+            ).fetchone()
+        return None if row is None else LearnedGamePolicy.model_validate_json(row["payload_json"])
+
+    def get_game_policy(
+        self,
+        project_id: str,
+        version: str,
+    ) -> LearnedGamePolicy | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT active, payload_json FROM learned_game_policies
+                WHERE project_id = ? AND version = ?
+                """,
+                (project_id, version),
+            ).fetchone()
+        return None if row is None else LearnedGamePolicy.model_validate_json(
+            row["payload_json"]
+        ).model_copy(update={"active": bool(row["active"])})
+
+    def list_game_policies(self, project_id: str) -> list[LearnedGamePolicy]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT active, payload_json FROM learned_game_policies
+                WHERE project_id = ? ORDER BY created_at DESC
+                """,
+                (project_id,),
+            ).fetchall()
+        return [
+            LearnedGamePolicy.model_validate_json(row["payload_json"]).model_copy(
+                update={"active": bool(row["active"])}
+            )
+            for row in rows
+        ]
+
+    def save_game_learning(
+        self,
+        analysis: GameDayAnalysis,
+        policy: LearnedGamePolicy,
+    ) -> tuple[GameDayAnalysis, LearnedGamePolicy]:
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute(
+                "SELECT payload_json FROM game_day_analyses WHERE game_day_id = ?",
+                (analysis.game_day_id,),
+            ).fetchone()
+            if existing is not None:
+                stored_analysis = GameDayAnalysis.model_validate_json(existing["payload_json"])
+                stored_policy = connection.execute(
+                    "SELECT payload_json FROM learned_game_policies WHERE version = ?",
+                    (stored_analysis.learned_policy_version,),
+                ).fetchone()
+                if stored_policy is None:
+                    raise RuntimeError("Stored game analysis is missing its learned policy")
+                return stored_analysis, LearnedGamePolicy.model_validate_json(stored_policy["payload_json"])
+            connection.execute(
+                "UPDATE learned_game_policies SET active = 0 WHERE project_id = ?",
+                (policy.project_id,),
+            )
+            connection.execute(
+                """
+                INSERT INTO game_day_analyses (
+                    id, project_id, game_day_id, payload_json, created_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    analysis.id,
+                    analysis.project_id,
+                    analysis.game_day_id,
+                    analysis.model_dump_json(),
+                    analysis.created_at.isoformat(),
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO learned_game_policies (
+                    version, project_id, source_game_day_id, active,
+                    payload_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    policy.version,
+                    policy.project_id,
+                    policy.source_game_day_id,
+                    int(policy.active),
+                    policy.model_dump_json(),
+                    policy.created_at.isoformat(),
+                ),
+            )
+        return analysis, policy
+
     def save_bill(
         self,
         project_id: str,
@@ -1226,3 +1382,4 @@ class SQLiteRepository:
             "updated_at": row["updated_at"],
         }
         return Project.model_validate(payload)
+    LearnedGamePolicy,

@@ -90,12 +90,22 @@ returned by the API.
 | GET | `/api/game/leaderboard` | Read the scoped individual leaderboard |
 | GET | `/api/projects/{project_id}/game-days/{game_day_id}/leaderboard` | Read the manager leaderboard |
 | GET | `/api/projects/{project_id}/game-days/{game_day_id}/events` | Read the authoritative, sequence-numbered day ledger |
+| GET | `/api/projects/{project_id}/game-days/{game_day_id}/analysis` | Read the structured post-close metrics, AI narrative, and learned policy version |
+| GET | `/api/projects/{project_id}/game-policies` | Audit immutable learned policies and identify the active next-day version |
 
 Task templates cannot reference protected equipment, and equipment challenges
 must use the authoritative equipment zone and role permissions. Claim updates
 use a versioned SQLite transaction so two staff members cannot win the same
 task. Session tokens are returned once and stored only as SHA-256 hashes. Score
 entries are unique per task instance, preventing duplicate completion points.
+Closing a day is idempotent: it stores one structured analysis and one learned
+policy for that ledger. OpenAI or Ollama is used only when the project's
+allow-listed backend provider is configured; invalid or unavailable output
+falls back to deterministic analysis. AI narrative is advisory. The automatic
+policy surface is limited to validated per-domain point multipliers in the
+`0.90`–`1.10` range, and each new game day snapshots the policy version it will
+use. Data-only prior-day context is recorded in the day-start event so replay
+and audits can show exactly what informed the Game Master.
 
 ## Error contract
 
