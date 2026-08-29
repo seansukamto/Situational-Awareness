@@ -15,6 +15,52 @@
   --amber: #e3aa4c;
 }
 
+/* Recorded staff-only day replay */
+.game-replay-panel { margin-top: 22px; border: 1px solid #dce4df; background: #fff; }
+.game-replay-heading { display: flex; justify-content: space-between; gap: 24px; padding: 24px 26px; border-bottom: 1px solid #dce4df; }
+.game-replay-heading > div:first-child { max-width: 760px; }
+.game-replay-heading span { color: #34805a; font-size: 11px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+.game-replay-heading h2 { margin: 6px 0 8px; color: #12221a; font-size: 25px; }
+.game-replay-heading p { margin: 0; color: #5c6862; font-size: 13px; line-height: 1.55; }
+.game-replay-heading > div:last-child { display: grid; align-content: center; min-width: 130px; text-align: right; }
+.game-replay-heading > div:last-child small { color: #748079; font-size: 11px; }
+.game-replay-heading > div:last-child strong { color: #183c2b; font-size: 24px; }
+.game-replay-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 520px; }
+.game-replay-stage { position: relative; min-width: 0; background: #08110d; }
+.game-replay-stage .scene-wrap { height: 100%; min-height: 520px; border: 0; border-radius: 0; }
+.game-replay-clock { position: absolute; z-index: 5; top: 16px; left: 16px; display: grid; min-width: 118px; padding: 11px 14px; border: 1px solid rgba(129, 244, 181, .28); background: rgba(7, 18, 13, .88); color: #dffbec; backdrop-filter: blur(10px); }
+.game-replay-clock span, .game-replay-clock small { color: #83b99c; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+.game-replay-clock strong { margin: 2px 0; color: #fff; font: 700 22px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.staff-replay-task-label { display: block; max-width: 160px; padding: 5px 8px; border: 1px solid rgba(121, 242, 181, .5); border-radius: 2px; background: rgba(7, 20, 13, .9); color: #e6fff0; font: 700 9px/1.25 Inter, sans-serif; text-align: center; white-space: nowrap; }
+.game-replay-events { overflow: hidden; border-left: 1px solid #dce4df; background: #f8faf9; }
+.game-replay-events > div { display: flex; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #dce4df; color: #52645a; font-size: 11px; text-transform: uppercase; }
+.game-replay-events article { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 3px 9px; padding: 13px 16px; border-bottom: 1px solid #e6ebe8; }
+.game-replay-events article time { color: #307952; font: 700 11px ui-monospace, monospace; }
+.game-replay-events article p { display: grid; gap: 3px; margin: 0; }
+.game-replay-events article p strong { color: #24342c; font-size: 11px; }
+.game-replay-events article p span { color: #68756e; font-size: 10px; line-height: 1.4; }
+.game-replay-events article small { grid-column: 2; color: #8b9690; font-size: 9px; text-transform: uppercase; }
+.game-replay-events > .game-empty-copy { padding: 22px 18px; }
+.game-replay-controls { display: grid; grid-template-columns: auto auto minmax(140px, 1fr) auto auto; align-items: center; gap: 12px; padding: 15px 20px; border-top: 1px solid #dce4df; }
+.game-replay-controls button { min-height: 36px; padding: 0 15px; border: 1px solid #bfd0c6; background: #f6faf7; color: #214a35; font-weight: 700; }
+.game-replay-controls button:first-child { border-color: #1d6f49; background: #1d6f49; color: #fff; }
+.game-replay-controls span { color: #78837d; font: 700 10px ui-monospace, monospace; }
+.game-replay-controls input { width: 100%; accent-color: #2a8a5b; }
+
+@media (max-width: 980px) {
+  .game-replay-layout { grid-template-columns: 1fr; }
+  .game-replay-events { border-top: 1px solid #dce4df; border-left: 0; }
+}
+
+@media (max-width: 680px) {
+  .game-replay-heading { display: grid; padding: 20px 17px; }
+  .game-replay-heading > div:last-child { justify-content: start; text-align: left; }
+  .game-replay-stage .scene-wrap { min-height: 420px; }
+  .game-replay-controls { grid-template-columns: auto 1fr auto; }
+  .game-replay-controls span { display: none; }
+  .game-replay-controls button:last-child { grid-column: 1 / -1; }
+}
+
 /* Live staff sustainability game */
 .game-control-page,
 .staff-config-page { padding: 4px 0 72px; }

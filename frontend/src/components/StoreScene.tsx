@@ -10,9 +10,11 @@ import type {
   EquipmentState,
   Position,
   StaffAgent,
+  StaffProfile,
   Store,
   WorldState,
 } from "../types";
+import type { StaffReplayState } from "../staffReplay";
 
 type Selection = { kind: "staff" | "customer" | "equipment"; id: string } | null;
 
@@ -25,6 +27,11 @@ const MODEL_URLS = {
   customer_03: `${MODEL_BASE}value-seeker.glb`,
   customer_04: `${MODEL_BASE}late-browser.glb`,
 } as const;
+
+function avatarModelUrl(avatarId: string): string {
+  const safeId = /^[a-z0-9-]+$/.test(avatarId) ? avatarId : "associate";
+  return `${MODEL_BASE}${safeId}.glb`;
+}
 
 function AnimatedCharacter({
   url,
@@ -579,6 +586,64 @@ function StoreGeometry({
   );
 }
 
+function StaffReplayGeometry({
+  store,
+  staff,
+  replay,
+  selection,
+  setSelection,
+}: {
+  store: Store;
+  staff: StaffProfile[];
+  replay: StaffReplayState;
+  selection: Selection;
+  setSelection: (selection: Selection) => void;
+}) {
+  return (
+    <group onClick={() => setSelection(null)}>
+      <ArchitecturalShell store={store} />
+      <RetailShelf position={[-1.9, 0, 0.2]} />
+      <RetailShelf position={[-0.25, 0, 0.2]} />
+      <RetailShelf position={[-1.9, 0, 2.15]} />
+      <RetailShelf position={[-0.25, 0, 2.15]} />
+      {store.equipment.map((equipment) => (
+        <EquipmentUnit
+          key={equipment.id}
+          equipment={equipment}
+          state={equipment.state}
+          selected={selection?.kind === "equipment" && selection.id === equipment.id}
+          onSelect={() => setSelection({ kind: "equipment", id: equipment.id })}
+        />
+      ))}
+      {staff.map((profile) => replay.activeStaff[profile.id] && (
+        <group key={profile.id}>
+          <AnimatedCharacter
+            url={avatarModelUrl(profile.avatar_id)}
+            position={replay.staffPositions[profile.id]}
+            scale={profile.role === "manager" ? 0.76 : 0.7}
+            accent={profile.role === "manager" ? "#ffd36b" : "#79f2b5"}
+            selected={selection?.kind === "staff" && selection.id === profile.id}
+            onSelect={() => setSelection({ kind: "staff", id: profile.id })}
+          />
+          {replay.staffTaskLabels[profile.id] && (
+            <Html
+              position={[
+                replay.staffPositions[profile.id].x,
+                2.25,
+                replay.staffPositions[profile.id].z,
+              ]}
+              center
+              distanceFactor={8}
+            >
+              <span className="staff-replay-task-label">{replay.staffTaskLabels[profile.id]}</span>
+            </Html>
+          )}
+        </group>
+      ))}
+    </group>
+  );
+}
+
 function selectionLabel(selection: Selection, store: Store, world: WorldState): string | null {
   if (!selection) return null;
   if (selection.kind === "staff") {
@@ -673,6 +738,53 @@ export function StoreScene({ store, world }: { store: Store; world: WorldState }
       {selectionLabel(selection, store, world) && (
         <div className="scene-selection">{selectionLabel(selection, store, world)}</div>
       )}
+    </div>
+  );
+}
+
+export function StaffReplayScene({
+  store,
+  staff,
+  replay,
+}: {
+  store: Store;
+  staff: StaffProfile[];
+  replay: StaffReplayState;
+}) {
+  const [selection, setSelection] = useState<Selection>(null);
+  const selectedProfile = selection?.kind === "staff"
+    ? staff.find((profile) => profile.id === selection.id)
+    : null;
+  const selectedEquipment = selection?.kind === "equipment"
+    ? store.equipment.find((equipment) => equipment.id === selection.id)
+    : null;
+  return (
+    <div className="scene-wrap staff-replay-scene" aria-label="Three-dimensional staff day replay">
+      <Canvas
+        shadows
+        camera={{ position: [12.4, 11.4, 13.2], fov: 36 }}
+        dpr={[1, 1.75]}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+        onCreated={({ gl }) => { gl.toneMappingExposure = 1.12; }}
+      >
+        <color attach="background" args={["#08110d"]} />
+        <fog attach="fog" args={["#08110d", 17, 31]} />
+        <hemisphereLight args={["#d7ffe6", "#07100b", 1.25]} />
+        <ambientLight intensity={0.32} />
+        <directionalLight position={[7, 13, 8]} intensity={2.8} castShadow shadow-mapSize={[2048, 2048]} />
+        <spotLight position={[-2, 9, 4]} color="#e3ffed" intensity={28} distance={22} angle={0.78} penumbra={0.72} castShadow />
+        <pointLight position={[3, 5, -2]} color="#8effc7" intensity={8} distance={13} />
+        <StaffReplayGeometry store={store} staff={staff} replay={replay} selection={selection} setSelection={setSelection} />
+        <ContactShadows position={[-0.5, 0.045, 1]} scale={14} opacity={0.5} blur={2.5} far={5} color="#000000" />
+        <OrbitControls makeDefault target={[-0.35, 0.55, 0.85]} minDistance={10.5} maxDistance={23} minPolarAngle={0.52} maxPolarAngle={1.2} enablePan={false} />
+      </Canvas>
+      <div className="scene-vignette" aria-hidden="true" />
+      <div className="scene-brandplate" aria-hidden="true"><span><i /> Recorded staff ledger</span><strong>{store.name} · staff only</strong></div>
+      <div className="scene-legend" aria-hidden="true"><span><i className="legend-staff" /> Joined staff</span><span><i className="legend-protected" /> Store equipment</span></div>
+      {selectedProfile && (
+        <div className="scene-selection">{selectedProfile.display_name} · {replay.staffPoints[selectedProfile.id] ?? 0} points</div>
+      )}
+      {selectedEquipment && <div className="scene-selection">{selectedEquipment.label} · recorded target</div>}
     </div>
   );
 }

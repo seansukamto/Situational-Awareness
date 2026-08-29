@@ -14,6 +14,7 @@ import {
   startGameDay,
 } from "../api";
 import type { Project, StaffRole, TaskTemplateCreate } from "../types";
+import { GameDayReplay } from "./GameDayReplay";
 
 
 function roleLabel(role: StaffRole): string {
@@ -108,6 +109,15 @@ export function GameControlPage({ project }: { project: Project }) {
           </div>
         </article>
       </div>
+
+      {currentDay && (
+        <GameDayReplay
+          project={project}
+          gameDay={currentDay}
+          staff={staff.data ?? []}
+          events={events.data ?? []}
+        />
+      )}
 
       {showTaskForm && (
         <div className="modal-backdrop" role="presentation">
