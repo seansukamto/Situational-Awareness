@@ -7,6 +7,7 @@ from uuid import uuid4
 import httpx
 
 from ..agents.models import AgentMode
+from ..agents.schema import openai_strict_json_schema
 from ..projects.models import Project
 from .models import (
     GAME_LEARNING_PROMPT_VERSION,
@@ -149,7 +150,7 @@ def _provider_narrative(
                     "type": "json_schema",
                     "name": "staff_game_learning_narrative",
                     "strict": True,
-                    "schema": GameLearningNarrative.model_json_schema(),
+                    "schema": openai_strict_json_schema(GameLearningNarrative),
                 }},
                 max_output_tokens=500,
                 store=False,

@@ -24,6 +24,7 @@ from .models import (
     AgentUsageSummary,
     ProviderModeStatus,
 )
+from .schema import openai_strict_json_schema
 
 
 PROVIDER_INSTRUCTIONS = """You propose one bounded retail-store action for the observed agent.
@@ -118,7 +119,7 @@ class OpenAIAgentProvider(AgentProvider):
                     "type": "json_schema",
                     "name": "retail_agent_proposal",
                     "strict": True,
-                    "schema": AgentProposal.model_json_schema(),
+                    "schema": openai_strict_json_schema(AgentProposal),
                 }
             },
             max_output_tokens=180,

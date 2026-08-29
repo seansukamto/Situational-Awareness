@@ -109,6 +109,9 @@ def test_official_openai_adapter_uses_responses_structured_output_without_storag
     assert calls[0]["store"] is False
     assert calls[0]["text"]["format"]["type"] == "json_schema"
     assert calls[0]["text"]["format"]["strict"] is True
+    schema = calls[0]["text"]["format"]["schema"]
+    assert schema["required"] == list(schema["properties"])
+    assert schema["additionalProperties"] is False
     assert "test-only-key" not in json.dumps(calls)
 
 
