@@ -120,6 +120,7 @@ class SQLiteRepository:
             self._migrate_live_game_staff(connection)
             self._migrate_live_game_days(connection)
             self._migrate_game_learning(connection)
+            self._migrate_demo_content(connection)
 
     @staticmethod
     def _migrate_live_game_staff(connection: sqlite3.Connection) -> None:
@@ -283,6 +284,57 @@ class SQLiteRepository:
             "INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)",
             (version, _now().isoformat()),
         )
+
+    @staticmethod
+    def _migrate_demo_content(connection: sqlite3.Connection) -> None:
+        version = 4
+        applied = connection.execute(
+            "SELECT 1 FROM schema_versions WHERE version = ?", (version,)
+        ).fetchone()
+        if applied:
+            return
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS demo_content_versions (
+                project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+                version INTEGER NOT NULL,
+                applied_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            "INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)",
+            (version, _now().isoformat()),
+        )
+
+    def get_demo_content_version(self, project_id: str) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT version FROM demo_content_versions WHERE project_id = ?",
+                (project_id,),
+            ).fetchone()
+        return 0 if row is None else int(row["version"])
+
+    def set_demo_content_version(self, project_id: str, version: int) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO demo_content_versions (project_id, version, applied_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(project_id) DO UPDATE SET
+                    version = excluded.version,
+                    applied_at = excluded.applied_at
+                """,
+                (project_id, version, _now().isoformat()),
+            )
+
+    def reset_demo_game_content(self, project_id: str) -> None:
+        """Remove only live-game demo records; project configuration and evidence remain."""
+        with self._connect() as connection:
+            connection.execute("DELETE FROM game_days WHERE project_id = ?", (project_id,))
+            connection.execute("DELETE FROM task_templates WHERE project_id = ?", (project_id,))
+            connection.execute("DELETE FROM staff_profiles WHERE project_id = ?", (project_id,))
+            connection.execute("DELETE FROM demo_content_versions WHERE project_id = ?", (project_id,))
 
     def create_project(self, payload: ProjectCreate, *, project_id: str | None = None) -> Project:
         now = _now()

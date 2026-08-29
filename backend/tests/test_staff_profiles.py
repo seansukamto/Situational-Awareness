@@ -36,7 +36,7 @@ def test_staff_schema_migration_is_idempotent(tmp_path):
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'staff_profiles'"
         ).fetchone()
 
-    assert versions == [(1,), (2,), (3,)]
+    assert versions == [(1,), (2,), (3,), (4,)]
     assert staff_table == ("staff_profiles",)
 
 
@@ -46,6 +46,7 @@ def test_staff_profiles_are_project_scoped_and_pins_are_not_exposed(tmp_path):
 
     with TestClient(app) as client:
         project = client.post("/api/demo/bootstrap").json()["project"]
+        repository.reset_demo_game_content(project["id"])
         avatars = client.get("/api/avatars")
         assert avatars.status_code == 200
         assert {item["id"] for item in avatars.json()} >= {
@@ -86,6 +87,7 @@ def test_staff_profile_validation_update_and_pin_reset(tmp_path):
 
     with TestClient(app) as client:
         project_id = client.post("/api/demo/bootstrap").json()["project"]["id"]
+        repository.reset_demo_game_content(project_id)
         created = client.post(
             f"/api/projects/{project_id}/staff",
             json=staff_payload(),

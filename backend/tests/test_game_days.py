@@ -87,6 +87,7 @@ def test_game_day_task_marketplace_scoring_and_event_ledger(tmp_path):
 
     with TestClient(app) as client:
         project_id = client.post("/api/demo/bootstrap").json()["project"]["id"]
+        repository.reset_demo_game_content(project_id)
         staff = create_staff(client, project_id, "Alex Tan")
         create_template(client, project_id)
         day = create_started_day(client, project_id)
@@ -188,6 +189,7 @@ def test_end_of_day_analysis_versions_and_applies_a_bounded_policy(tmp_path):
 
     with TestClient(app) as client:
         project_id = client.post("/api/demo/bootstrap").json()["project"]["id"]
+        repository.reset_demo_game_content(project_id)
         staff = create_staff(client, project_id, "Ava Lim")
         create_template(client, project_id)
         day = create_started_day(client, project_id)
@@ -269,6 +271,7 @@ def test_task_claim_is_atomic_and_only_one_staff_wins(tmp_path):
 
     with TestClient(app) as client:
         project_id = client.post("/api/demo/bootstrap").json()["project"]["id"]
+        repository.reset_demo_game_content(project_id)
         first = create_staff(client, project_id, "Alex Tan")
         second = create_staff(client, project_id, "Jamie Lim", "1357")
         create_template(client, project_id)
@@ -307,6 +310,7 @@ def test_game_task_policy_rejects_protected_and_unauthorized_equipment(tmp_path)
 
     with TestClient(app) as client:
         project_id = client.post("/api/demo/bootstrap").json()["project"]["id"]
+        repository.reset_demo_game_content(project_id)
         protected = client.post(
             f"/api/projects/{project_id}/task-templates",
             json={

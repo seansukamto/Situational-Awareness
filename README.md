@@ -91,6 +91,11 @@ rates in `.env.example` are configured.
   simulated consumers mixed into the evidence. Challenge templates cover
   energy, water, waste, food, transport, and buying habits with equipment,
   zone, or store-wide targets.
+- The demo project starts with four named fictional staff profiles, six task
+  templates, and a completed full-shift showcase day. Real full-day timestamps
+  remain unchanged; compressed presentation runs are paced across the scheduled
+  shift, and idle staff follow deterministic work routes through authorized
+  zones between ledger events.
 - Closing a game day produces a structured AI analysis with deterministic
   fallback, per-task evidence labels and advisory task-design improvements, and
   an immutable learned-policy version. Missing outcome data stays labelled

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
-import { buildStaffReplay, eventLocalMinute } from "../staffReplay";
+import { buildReplayTimeline, buildStaffReplay } from "../staffReplay";
 import type { GameDay, GameDayEvent, Project, StaffProfile } from "../types";
 
 
@@ -32,17 +32,18 @@ export function GameDayReplay({
 }) {
   const [minute, setMinute] = useState(gameDay.start_minute);
   const [playing, setPlaying] = useState(false);
-  const timedEvents = useMemo(() => events.map((event) => ({
-    event,
-    minute: Math.max(
-      gameDay.start_minute,
-      Math.min(gameDay.end_minute, eventLocalMinute(event, gameDay.timezone)),
-    ),
-  })), [events, gameDay.end_minute, gameDay.start_minute, gameDay.timezone]);
+  const timedEvents = useMemo(
+    () => buildReplayTimeline(gameDay, staff, events),
+    [events, gameDay, staff],
+  );
   const step = timedEvents.filter((item) => item.minute <= minute).length;
+  const replayEvents = useMemo(
+    () => timedEvents.map((item) => item.event),
+    [timedEvents],
+  );
   const replay = useMemo(
-    () => buildStaffReplay(project.store, staff, events, step),
-    [events, project.store, staff, step],
+    () => buildStaffReplay(project.store, staff, replayEvents, step, minute),
+    [minute, project.store, replayEvents, staff, step],
   );
   const visibleEvents = timedEvents.filter((item) => item.minute <= minute).slice(-5).reverse();
 
@@ -69,7 +70,7 @@ export function GameDayReplay({
   return (
     <section className="game-replay-panel" aria-label="Staff day replay">
       <div className="game-replay-heading">
-        <div><span>04 · Recorded day</span><h2>Staff-only interaction replay</h2><p>Every movement below is reconstructed from immutable join, claim, completion, and score ledger events. Consumer agents are intentionally excluded.</p></div>
+        <div><span>04 · Recorded day</span><h2>Staff-only interaction replay</h2><p>Task events come from the immutable ledger. Between tasks, joined staff follow deterministic work routes through their authorized zones; consumer agents are intentionally excluded.</p></div>
         <div><small>{joinedCount} staff visible</small><strong>{totalPoints} points</strong></div>
       </div>
       <div className="game-replay-layout">

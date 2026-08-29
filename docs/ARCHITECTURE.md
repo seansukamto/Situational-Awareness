@@ -48,6 +48,14 @@ limited to `0.90x`–`1.10x` domain point weights and explainable task ranking;
 role, zone, equipment, protected-load, and employment boundaries cannot be
 changed by model output.
 
+The replay keeps the immutable UTC audit timestamp on every event. A ledger
+that already spans the workday uses its recorded local times. When a demo is
+clicked through in only a few minutes, the frontend projects its lifecycle
+across the configured shift for legibility without rewriting the source
+events. Between claims and completions, joined staff follow deterministic idle
+work routes within their authorized zones; those movements are presentation
+state and are not recorded as invented evidence.
+
 ## Simulation tick
 
 For each five-minute tick, the engine:

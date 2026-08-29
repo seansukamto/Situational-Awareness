@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildStaffReplay, eventLocalMinute } from "./staffReplay";
-import type { GameDayEvent, StaffProfile, Store } from "./types";
+import { buildReplayTimeline, buildStaffReplay, eventLocalMinute } from "./staffReplay";
+import type { GameDay, GameDayEvent, StaffProfile, Store } from "./types";
 
 
 const store: Store = {
@@ -11,7 +11,10 @@ const store: Store = {
   floor_area_m2: 100,
   opening_minute: 600,
   closing_minute: 1320,
-  zones: [{ id: "sales", label: "Sales", center: { x: 1, z: 2 }, width: 6, depth: 4 }],
+  zones: [
+    { id: "sales", label: "Sales", center: { x: 1, z: 2 }, width: 6, depth: 4 },
+    { id: "stock", label: "Stockroom", center: { x: -3, z: 4 }, width: 4, depth: 3 },
+  ],
   equipment: [{
     id: "lights",
     label: "Lights",
@@ -35,13 +38,29 @@ const staff: StaffProfile = {
   normalized_name: "ava",
   role: "closing_associate",
   avatar_id: "associate",
-  authorized_zone_ids: ["sales"],
+  authorized_zone_ids: ["sales", "stock"],
   authorized_equipment_ids: ["lights"],
   default_shift_start: 600,
   default_shift_end: 1320,
   active: true,
   created_at: "2026-08-29T00:00:00Z",
   updated_at: "2026-08-29T00:00:00Z",
+};
+
+const gameDay: GameDay = {
+  id: "game",
+  project_id: "project",
+  local_date: "2026-08-29",
+  timezone: "Asia/Singapore",
+  start_minute: 600,
+  end_minute: 1320,
+  status: "completed",
+  join_token: "demo",
+  policy_version: "policy",
+  scoring_version: "scoring",
+  created_at: "2026-08-29T12:30:00Z",
+  started_at: "2026-08-29T12:30:00Z",
+  completed_at: "2026-08-29T12:30:00Z",
 };
 
 function event(seq: number, type: string, data: Record<string, unknown> = {}): GameDayEvent {
@@ -79,5 +98,35 @@ describe("staff-only day replay", () => {
 
   it("converts immutable UTC event timestamps into the store's local day minute", () => {
     expect(eventLocalMinute(event(1, "staff_joined"), "Asia/Singapore")).toBe(20 * 60 + 30);
+  });
+
+  it("projects a compressed demo interaction across the scheduled workday", () => {
+    const events = [
+      event(1, "day_started"),
+      event(2, "staff_joined"),
+      event(3, "task_claimed"),
+      event(4, "task_completed"),
+      event(5, "points_awarded", { points: 25 }),
+      event(6, "day_completed"),
+    ];
+    const timeline = buildReplayTimeline(gameDay, [staff], events);
+    const minuteByType = new Map(timeline.map((item) => [item.event.type, item.minute]));
+
+    expect(minuteByType.get("day_started")).toBe(600);
+    expect(minuteByType.get("staff_joined")).toBe(600);
+    expect(minuteByType.get("task_claimed")).toBeGreaterThan(600);
+    expect(minuteByType.get("task_completed")).toBeGreaterThan(minuteByType.get("task_claimed")!);
+    expect(minuteByType.get("day_completed")).toBe(1320);
+  });
+
+  it("moves idle joined staff through authorized work zones during their shift", () => {
+    const joined = [event(1, "staff_joined")];
+    const first = buildStaffReplay(store, [staff], joined, 1, 610);
+    const later = buildStaffReplay(store, [staff], joined, 1, 720);
+    const afterShift = buildStaffReplay(store, [staff], joined, 1, 1321);
+
+    expect(first.activeStaff.staff_1).toBe(true);
+    expect(later.staffPositions.staff_1).not.toEqual(first.staffPositions.staff_1);
+    expect(afterShift.activeStaff.staff_1).toBe(false);
   });
 });

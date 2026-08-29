@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
@@ -18,6 +19,31 @@ def test_demo_bootstrap_and_analysis(tmp_path):
         assert second.status_code == 200
         assert first.json()["project"]["id"] == "project_demo_sg_01"
         assert len(second.json()["bills"]) == 1
+        staff = client.get("/api/projects/project_demo_sg_01/staff").json()
+        templates = client.get("/api/projects/project_demo_sg_01/task-templates").json()
+        days = client.get("/api/projects/project_demo_sg_01/game-days").json()
+        assert [profile["display_name"] for profile in staff] == [
+            "Aisha Rahman",
+            "Daniel Tan",
+            "Lucas Wong",
+            "Maya Lim",
+        ]
+        assert len(templates) == 6
+        assert {template["domain"] for template in templates} == {
+            "energy", "water", "waste", "food", "transport", "buying"
+        }
+        assert days[0]["id"] == "day_demo_showcase"
+        assert days[0]["status"] == "completed"
+        leaderboard = client.get(
+            "/api/projects/project_demo_sg_01/game-days/day_demo_showcase/leaderboard"
+        ).json()
+        assert len(leaderboard) == 4
+        assert sum(item["tasks_completed"] for item in leaderboard) == 5
+        events = client.get(
+            "/api/projects/project_demo_sg_01/game-days/day_demo_showcase/events"
+        ).json()
+        assert events[-1]["type"] == "day_completed"
+        assert events[0]["occurred_at"] != events[-1]["occurred_at"]
 
         response = client.post(
             "/api/projects/project_demo_sg_01/analysis",
@@ -53,6 +79,22 @@ def test_demo_bootstrap_refreshes_an_older_store_model(tmp_path):
         response = client.post("/api/demo/bootstrap")
         assert response.status_code == 200
         assert len(response.json()["project"]["store"]["customers"]) == 4
+
+
+def test_demo_bootstrap_is_safe_when_multiple_tabs_load_together(tmp_path):
+    app.state.repository = SQLiteRepository(tmp_path / "concurrent-demo.sqlite3")
+    with TestClient(app) as client:
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            responses = list(executor.map(
+                lambda _: client.post("/api/demo/bootstrap"),
+                range(3),
+            ))
+
+        assert [response.status_code for response in responses] == [200, 200, 200]
+        staff = client.get("/api/projects/project_demo_sg_01/staff").json()
+        templates = client.get("/api/projects/project_demo_sg_01/task-templates").json()
+        assert len(staff) == 4
+        assert len(templates) == 6
 
 
 def test_store_settings_persist_and_drive_simulation(tmp_path):

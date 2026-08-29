@@ -4,6 +4,7 @@ import hashlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import Lock
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
@@ -26,6 +27,7 @@ from ..simulation import (
 from ..simulation.explain import explain_event
 from .bills import parse_bill_bytes
 from .checklists import complete_task, create_checklist
+from .demo_game import seed_demo_game_content
 from .impact import analyse_project
 from .models import (
     AnalysisRequest,
@@ -54,6 +56,7 @@ router = APIRouter(prefix="/api", tags=["projects"])
 DEMO_PROJECT_ID = "project_demo_sg_01"
 DEMO_BILL_ID = "bill_demo_sg_2026_07"
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+_DEMO_BOOTSTRAP_LOCK = Lock()
 
 
 def repository(request: Request) -> SQLiteRepository:
@@ -187,6 +190,11 @@ def synthetic_bill() -> UtilityBillDraft:
 
 @router.post("/demo/bootstrap")
 def bootstrap_demo(repo: SQLiteRepository = Depends(repository)) -> dict:
+    with _DEMO_BOOTSTRAP_LOCK:
+        return _bootstrap_demo(repo)
+
+
+def _bootstrap_demo(repo: SQLiteRepository) -> dict:
     project = repo.get_project(DEMO_PROJECT_ID)
     if project is None:
         project = repo.create_project(
@@ -209,6 +217,7 @@ def bootstrap_demo(repo: SQLiteRepository = Depends(repository)) -> dict:
             status=BillStatus.CONFIRMED,
             bill_id=DEMO_BILL_ID,
         )
+    seed_demo_game_content(repo, project)
     return {"project": project, "bills": repo.list_bills(project.id)}
 
 
