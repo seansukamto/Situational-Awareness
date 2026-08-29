@@ -23,6 +23,31 @@ from .models import (
 from .tasks import authorized_shutdown_tasks
 
 
+GAME_MASTER_RULES_VERSION = "green-close-rules-2026.08"
+GAME_MASTER_RULES = (
+    {
+        "id": "protected_loads",
+        "label": "Protected loads stay active",
+        "description": "Protected equipment cannot be switched off by any agent.",
+    },
+    {
+        "id": "role_authorization",
+        "label": "Role authorization enforced",
+        "description": "Only roles assigned to an equipment load may operate it.",
+    },
+    {
+        "id": "customer_presence",
+        "label": "Customer-facing loads guarded",
+        "description": "Customer-facing equipment stays active until every consumer exits.",
+    },
+    {
+        "id": "immutable_snapshot",
+        "label": "Historical inputs locked",
+        "description": "A replay always uses the configuration and evidence stored with its run.",
+    },
+)
+
+
 class GameMaster:
     """Owns time, rules, world state, resource integration, and the event log."""
 

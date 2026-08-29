@@ -1,12 +1,22 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import PlainTextResponse
 
-from ..simulation import build_demo_store
+from ..simulation import (
+    GAME_MASTER_RULES,
+    GAME_MASTER_RULES_VERSION,
+    GameMaster,
+    build_demo_store,
+    get_scenario,
+)
+from ..simulation.explain import explain_event
 from .bills import parse_bill_bytes
 from .checklists import complete_task, create_checklist
 from .impact import analyse_project
@@ -18,9 +28,13 @@ from .models import (
     EvidenceField,
     EvidenceKind,
     ImpactAnalysis,
+    PersistedSimulationRun,
     Project,
     ProjectCreate,
+    RunStatus,
     ScenarioSettings,
+    SimulationRunCreate,
+    SimulationRunSummary,
     StoreSettings,
     UtilityBill,
     UtilityBillDraft,
@@ -44,6 +58,45 @@ def require_project(repo: SQLiteRepository, project_id: str) -> Project:
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+
+def run_configuration_hash(project: Project, bill: UtilityBill | None) -> str:
+    snapshot = {
+        "store": project.store.model_dump(mode="json"),
+        "scenario_settings": project.settings.model_dump(mode="json"),
+        "evidence": bill.model_dump(mode="json") if bill else None,
+    }
+    canonical = json.dumps(snapshot, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def with_configuration_status(
+    run: PersistedSimulationRun,
+    current_hash: str,
+) -> PersistedSimulationRun:
+    return run.model_copy(
+        update={"configuration_current": run.configuration_hash == current_hash}
+    )
+
+
+def run_summary(run: PersistedSimulationRun) -> SimulationRunSummary:
+    savings = None
+    if run.impact_analysis:
+        metric = run.impact_analysis.metrics.get("annual_utility_savings")
+        savings = metric.p50 if metric else None
+    return SimulationRunSummary(
+        id=run.id,
+        project_id=run.project_id,
+        created_at=run.created_at,
+        completed_at=run.completed_at,
+        status=run.status,
+        seed=run.seed,
+        sample_count=run.sample_count,
+        estimated_savings_sgd=savings,
+        configuration_current=run.configuration_current,
+        game_master_rules_version=run.game_master_rules_version,
+        failure_message=run.failure_message,
+    )
 
 
 def synthetic_bill() -> UtilityBillDraft:
@@ -143,6 +196,128 @@ def update_store_settings(
     project = repo.update_store(project_id, store)
     assert project is not None
     return project
+
+
+@router.post(
+    "/projects/{project_id}/runs",
+    response_model=PersistedSimulationRun,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_simulation_run(
+    project_id: str,
+    request: SimulationRunCreate,
+    repo: SQLiteRepository = Depends(repository),
+) -> PersistedSimulationRun:
+    project = require_project(repo, project_id)
+    evidence = repo.latest_confirmed_bill(project_id)
+    configuration_hash = run_configuration_hash(project, evidence)
+    run = PersistedSimulationRun(
+        id=f"run_{uuid4().hex[:12]}",
+        project_id=project_id,
+        created_at=datetime.now(UTC),
+        status=RunStatus.QUEUED,
+        seed=request.seed,
+        sample_count=request.sample_count,
+        store_snapshot=project.store.model_copy(deep=True),
+        scenario_settings_snapshot=project.settings.model_copy(deep=True),
+        evidence_snapshot=evidence.model_copy(deep=True) if evidence else None,
+        configuration_hash=configuration_hash,
+        game_master_rules_version=GAME_MASTER_RULES_VERSION,
+        game_master_rules_snapshot=list(GAME_MASTER_RULES),
+    )
+    repo.create_simulation_run(run)
+    run = run.model_copy(update={"status": RunStatus.RUNNING})
+    repo.update_simulation_run(run)
+
+    try:
+        baseline = GameMaster(
+            run.store_snapshot,
+            get_scenario("baseline"),
+            run.seed,
+        ).run()
+        intervention = GameMaster(
+            run.store_snapshot,
+            get_scenario(run.scenario_settings_snapshot.scenario_id),
+            run.seed,
+        ).run()
+        comparison = GameMaster.compare(baseline, intervention)
+        analysis = None
+        if run.evidence_snapshot:
+            snapshot_project = project.model_copy(
+                deep=True,
+                update={
+                    "store": run.store_snapshot,
+                    "settings": run.scenario_settings_snapshot,
+                },
+            )
+            analysis = analyse_project(
+                snapshot_project,
+                run.evidence_snapshot,
+                samples=run.sample_count,
+                seed=run.seed,
+            )
+            repo.save_analysis(analysis)
+        run = run.model_copy(
+            update={
+                "status": RunStatus.COMPLETED,
+                "completed_at": datetime.now(UTC),
+                "comparison": comparison,
+                "impact_analysis": analysis,
+                "baseline_explanations": [explain_event(event) for event in baseline.events],
+                "intervention_explanations": [
+                    explain_event(event) for event in intervention.events
+                ],
+            }
+        )
+    except Exception as exc:  # Persist an auditable failure instead of losing the attempt.
+        run = run.model_copy(
+            update={
+                "status": RunStatus.FAILED,
+                "completed_at": datetime.now(UTC),
+                "failure_message": str(exc)[:500] or "Simulation generation failed",
+            }
+        )
+    repo.update_simulation_run(run)
+    return run
+
+
+@router.get(
+    "/projects/{project_id}/runs",
+    response_model=list[SimulationRunSummary],
+)
+def list_simulation_runs(
+    project_id: str,
+    repo: SQLiteRepository = Depends(repository),
+) -> list[SimulationRunSummary]:
+    project = require_project(repo, project_id)
+    current_hash = run_configuration_hash(
+        project,
+        repo.latest_confirmed_bill(project_id),
+    )
+    return [
+        run_summary(with_configuration_status(run, current_hash))
+        for run in repo.list_simulation_runs(project_id)
+    ]
+
+
+@router.get(
+    "/projects/{project_id}/runs/{run_id}",
+    response_model=PersistedSimulationRun,
+)
+def get_simulation_run(
+    project_id: str,
+    run_id: str,
+    repo: SQLiteRepository = Depends(repository),
+) -> PersistedSimulationRun:
+    project = require_project(repo, project_id)
+    run = repo.get_simulation_run(project_id, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Simulation run not found")
+    current_hash = run_configuration_hash(
+        project,
+        repo.latest_confirmed_bill(project_id),
+    )
+    return with_configuration_status(run, current_hash)
 
 
 @router.get("/projects/{project_id}/bills", response_model=list[UtilityBill])
@@ -305,6 +480,43 @@ def complete_staff_task(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     repo.update_checklist(updated)
     return updated
+
+
+@router.get(
+    "/projects/{project_id}/runs/{run_id}/report.md",
+    response_class=PlainTextResponse,
+)
+def download_run_decision_brief(
+    project_id: str,
+    run_id: str,
+    repo: SQLiteRepository = Depends(repository),
+) -> PlainTextResponse:
+    project = require_project(repo, project_id)
+    run = repo.get_simulation_run(project_id, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Simulation run not found")
+    if run.impact_analysis is None or run.evidence_snapshot is None:
+        raise HTTPException(
+            status_code=409,
+            detail="This run has no confirmed evidence-backed impact analysis",
+        )
+    snapshot_project = project.model_copy(
+        deep=True,
+        update={
+            "store": run.store_snapshot,
+            "settings": run.scenario_settings_snapshot,
+        },
+    )
+    report = build_decision_brief(
+        snapshot_project,
+        run.evidence_snapshot,
+        run.impact_analysis,
+    )
+    filename = f"situational-awareness-{run.id}-decision-brief.md"
+    return PlainTextResponse(
+        report,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get(

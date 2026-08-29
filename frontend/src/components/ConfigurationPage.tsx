@@ -47,9 +47,8 @@ function StoreProfile({ project }: { project: Project }) {
       queryClient.setQueryData<DemoBundle>(["demo"], (current) => (
         current ? { ...current, project: updated } : current
       ));
-      void queryClient.invalidateQueries({ queryKey: ["comparison"] });
-      void queryClient.invalidateQueries({ queryKey: ["explanations"] });
-      void queryClient.invalidateQueries({ queryKey: ["analysis"] });
+      void queryClient.invalidateQueries({ queryKey: ["runs"] });
+      void queryClient.invalidateQueries({ queryKey: ["run"] });
     },
   });
 
@@ -100,7 +99,7 @@ function StoreProfile({ project }: { project: Project }) {
         </label>
         <div className="config-form-actions">
           <span className={save.isError ? "save-state error" : "save-state"}>
-            {save.isError ? save.error.message : save.isSuccess ? "Saved · simulation refreshed" : "Changes are versioned with this project"}
+            {save.isError ? save.error.message : save.isSuccess ? "Saved · create a new run to apply" : "Changes never rewrite historical runs"}
           </span>
           <button type="submit" disabled={save.isPending}>{save.isPending ? "Saving…" : "Save store profile"}</button>
         </div>
@@ -174,12 +173,12 @@ export function ConfigurationPage({
         <div>
           <span className="kicker">Project control plane</span>
           <h1>Ground the simulation in your store.</h1>
-          <p>Manage operating context, behavioural assumptions, and source documents in one place. Saved changes automatically refresh the comparison model.</p>
+          <p>Manage operating context, behavioural assumptions, and source documents in one place. Saved changes never rewrite historical results; create a new run when you are ready to apply them.</p>
         </div>
         <div className="configuration-health">
           <span>Model readiness</span>
           <strong>{uniqueBills.some((bill) => bill.status === "confirmed") ? "Ready" : "Needs evidence"}</strong>
-          <small><i /> {analysis ? `${Math.round(analysis.calibration.model_coverage_ratio * 100)}% model coverage` : "Analysis refreshing"}</small>
+          <small><i /> {analysis ? `${Math.round(analysis.calibration.model_coverage_ratio * 100)}% latest selected-run coverage` : "Ready for a new run"}</small>
         </div>
       </div>
 

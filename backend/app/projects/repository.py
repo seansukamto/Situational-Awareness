@@ -12,6 +12,7 @@ from .models import (
     BillStatus,
     ChecklistSession,
     ImpactAnalysis,
+    PersistedSimulationRun,
     Project,
     ProjectCreate,
     ScenarioSettings,
@@ -70,6 +71,21 @@ class SQLiteRepository:
                     expires_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS simulation_runs (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    created_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    status TEXT NOT NULL,
+                    seed INTEGER NOT NULL,
+                    sample_count INTEGER NOT NULL,
+                    configuration_hash TEXT NOT NULL,
+                    game_master_rules_version TEXT NOT NULL,
+                    failure_message TEXT,
+                    payload_json TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_simulation_runs_project_created
+                ON simulation_runs(project_id, created_at DESC);
                 """
             )
 
@@ -233,6 +249,79 @@ class SQLiteRepository:
                 "SELECT payload_json FROM analyses WHERE id = ?", (analysis_id,)
             ).fetchone()
         return None if row is None else ImpactAnalysis.model_validate_json(row["payload_json"])
+
+    def create_simulation_run(self, run: PersistedSimulationRun) -> PersistedSimulationRun:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO simulation_runs (
+                    id, project_id, created_at, completed_at, status, seed, sample_count,
+                    configuration_hash, game_master_rules_version, failure_message, payload_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    run.id,
+                    run.project_id,
+                    run.created_at.isoformat(),
+                    run.completed_at.isoformat() if run.completed_at else None,
+                    run.status,
+                    run.seed,
+                    run.sample_count,
+                    run.configuration_hash,
+                    run.game_master_rules_version,
+                    run.failure_message,
+                    run.model_dump_json(),
+                ),
+            )
+        return run
+
+    def update_simulation_run(self, run: PersistedSimulationRun) -> PersistedSimulationRun:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE simulation_runs
+                SET completed_at = ?, status = ?, failure_message = ?, payload_json = ?
+                WHERE id = ? AND project_id = ?
+                """,
+                (
+                    run.completed_at.isoformat() if run.completed_at else None,
+                    run.status,
+                    run.failure_message,
+                    run.model_dump_json(),
+                    run.id,
+                    run.project_id,
+                ),
+            )
+        if cursor.rowcount == 0:
+            raise ValueError("Simulation run not found")
+        return run
+
+    def get_simulation_run(
+        self,
+        project_id: str,
+        run_id: str,
+    ) -> PersistedSimulationRun | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT payload_json FROM simulation_runs
+                WHERE project_id = ? AND id = ?
+                """,
+                (project_id, run_id),
+            ).fetchone()
+        return None if row is None else PersistedSimulationRun.model_validate_json(row["payload_json"])
+
+    def list_simulation_runs(self, project_id: str) -> list[PersistedSimulationRun]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT payload_json FROM simulation_runs
+                WHERE project_id = ?
+                ORDER BY created_at DESC, id DESC
+                """,
+                (project_id,),
+            ).fetchall()
+        return [PersistedSimulationRun.model_validate_json(row["payload_json"]) for row in rows]
 
     def save_checklist(self, checklist: ChecklistSession) -> None:
         with self._connect() as connection:

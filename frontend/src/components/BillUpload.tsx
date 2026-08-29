@@ -31,7 +31,8 @@ export function BillUpload({
     onSuccess: (bill) => {
       onConfirmed(bill);
       setDraft(null);
-      void queryClient.invalidateQueries({ queryKey: ["analysis"] });
+      void queryClient.invalidateQueries({ queryKey: ["runs"] });
+      void queryClient.invalidateQueries({ queryKey: ["run"] });
     },
   });
 

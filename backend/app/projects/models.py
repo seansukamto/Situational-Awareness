@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from ..simulation.models import Store
+from ..simulation.models import EventExplanation, ScenarioComparison, Store
 
 
 def utc_now() -> datetime:
@@ -148,6 +148,60 @@ class ImpactAnalysis(BaseModel):
     assumptions: list[ImpactAssumption]
     risks: list[str]
     calibration: dict[str, Any]
+
+
+class RunStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class SimulationRunCreate(BaseModel):
+    seed: int = Field(default=42, ge=0, le=2_147_483_647)
+    sample_count: int = Field(default=120, ge=25, le=500)
+
+
+class GameMasterRuleSnapshot(BaseModel):
+    id: str
+    label: str
+    description: str
+
+
+class PersistedSimulationRun(BaseModel):
+    id: str
+    project_id: str
+    created_at: datetime
+    completed_at: datetime | None = None
+    status: RunStatus
+    seed: int
+    sample_count: int
+    comparison: ScenarioComparison | None = None
+    impact_analysis: ImpactAnalysis | None = None
+    store_snapshot: Store
+    scenario_settings_snapshot: ScenarioSettings
+    evidence_snapshot: UtilityBill | None = None
+    baseline_explanations: list[EventExplanation] = Field(default_factory=list)
+    intervention_explanations: list[EventExplanation] = Field(default_factory=list)
+    configuration_hash: str
+    configuration_current: bool = True
+    game_master_rules_version: str
+    game_master_rules_snapshot: list[GameMasterRuleSnapshot] = Field(default_factory=list)
+    failure_message: str | None = None
+
+
+class SimulationRunSummary(BaseModel):
+    id: str
+    project_id: str
+    created_at: datetime
+    completed_at: datetime | None = None
+    status: RunStatus
+    seed: int
+    sample_count: int
+    estimated_savings_sgd: float | None = None
+    configuration_current: bool
+    game_master_rules_version: str
+    failure_message: str | None = None
 
 
 class ChecklistTask(BaseModel):

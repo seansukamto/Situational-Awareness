@@ -3,11 +3,13 @@ import type {
   ChecklistSession,
   EventExplanation,
   ImpactAnalysis,
+  PersistedSimulationRun,
   Project,
   ScenarioSettings,
   ScenarioComparison,
   Store,
   StoreSettings,
+  SimulationRunSummary,
   UtilityBill,
 } from "./types";
 
@@ -86,6 +88,28 @@ export function updateStoreSettings(
   });
 }
 
+export function listSimulationRuns(projectId: string): Promise<SimulationRunSummary[]> {
+  return request(`/api/projects/${projectId}/runs`);
+}
+
+export function fetchSimulationRun(
+  projectId: string,
+  runId: string,
+): Promise<PersistedSimulationRun> {
+  return request(`/api/projects/${projectId}/runs/${runId}`);
+}
+
+export function createSimulationRun(
+  projectId: string,
+  values: { seed: number; sample_count: number },
+): Promise<PersistedSimulationRun> {
+  return request(`/api/projects/${projectId}/runs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+}
+
 export function uploadUtilityBill(projectId: string, file: File): Promise<UtilityBill> {
   const body = new FormData();
   body.append("bill_file", file);
@@ -108,6 +132,12 @@ export async function downloadDecisionBrief(projectId: string, analysisId: strin
   const response = await fetch(
     `${API_URL}/api/projects/${projectId}/analyses/${analysisId}/report.md`,
   );
+  if (!response.ok) throw new Error("Decision brief could not be generated");
+  return response.text();
+}
+
+export async function downloadRunDecisionBrief(projectId: string, runId: string): Promise<string> {
+  const response = await fetch(`${API_URL}/api/projects/${projectId}/runs/${runId}/report.md`);
   if (!response.ok) throw new Error("Decision brief could not be generated");
   return response.text();
 }

@@ -186,6 +186,48 @@ export type ImpactAnalysis = {
   };
 };
 
+export type SimulationRunStatus = "queued" | "running" | "completed" | "failed";
+
+export type SimulationRunSummary = {
+  id: string;
+  project_id: string;
+  created_at: string;
+  completed_at: string | null;
+  status: SimulationRunStatus;
+  seed: number;
+  sample_count: number;
+  estimated_savings_sgd: number | null;
+  configuration_current: boolean;
+  game_master_rules_version: string;
+  failure_message: string | null;
+};
+
+export type PersistedSimulationRun = {
+  id: string;
+  project_id: string;
+  created_at: string;
+  completed_at: string | null;
+  status: SimulationRunStatus;
+  seed: number;
+  sample_count: number;
+  comparison: ScenarioComparison | null;
+  impact_analysis: ImpactAnalysis | null;
+  store_snapshot: Store;
+  scenario_settings_snapshot: ScenarioSettings;
+  evidence_snapshot: UtilityBill | null;
+  baseline_explanations: EventExplanation[];
+  intervention_explanations: EventExplanation[];
+  configuration_hash: string;
+  configuration_current: boolean;
+  game_master_rules_version: string;
+  game_master_rules_snapshot: Array<{
+    id: string;
+    label: string;
+    description: string;
+  }>;
+  failure_message: string | null;
+};
+
 export type EventExplanation = {
   event_seq: number;
   summary: string;

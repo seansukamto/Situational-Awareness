@@ -12,7 +12,8 @@ export function ScenarioSettings({ project }: { project: Project }) {
     mutationFn: () => updateScenarioSettings(project.id, settings),
     onSuccess: (updated) => {
       queryClient.setQueryData<DemoBundle>(["demo"], (current) => current ? { ...current, project: updated } : current);
-      void queryClient.invalidateQueries({ queryKey: ["analysis"] });
+      void queryClient.invalidateQueries({ queryKey: ["runs"] });
+      void queryClient.invalidateQueries({ queryKey: ["run"] });
     },
   });
   return (
@@ -29,8 +30,8 @@ export function ScenarioSettings({ project }: { project: Project }) {
         <label><span>Tariff uncertainty (±%)</span><input type="number" min="0" max="50" value={settings.tariff_uncertainty_pct} onChange={(event) => setSettings({ ...settings, tariff_uncertainty_pct: Number(event.target.value) })} /></label>
         <label><span>Expected adoption</span><input type="range" min="0" max="1" step="0.05" value={settings.adoption_rate} onChange={(event) => setSettings({ ...settings, adoption_rate: Number(event.target.value) })} /><small>{Math.round(settings.adoption_rate * 100)}%</small></label>
         <div className="config-form-actions">
-          <span className={save.isError ? "save-state error" : "save-state"}>{save.isError ? save.error.message : save.isSuccess ? "Saved · analysis refreshed" : "Uncertainty remains visible in every result"}</span>
-          <button type="submit" disabled={save.isPending}>{save.isPending ? "Recalculating…" : "Save assumptions"}</button>
+          <span className={save.isError ? "save-state error" : "save-state"}>{save.isError ? save.error.message : save.isSuccess ? "Saved · create a new run to apply" : "Historical uncertainty ranges stay unchanged"}</span>
+          <button type="submit" disabled={save.isPending}>{save.isPending ? "Saving…" : "Save assumptions"}</button>
         </div>
       </form>
     </section>
