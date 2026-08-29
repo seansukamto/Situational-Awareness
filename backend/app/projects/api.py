@@ -79,6 +79,9 @@ def bootstrap_demo(repo: SQLiteRepository = Depends(repository)) -> dict:
             ),
             project_id=DEMO_PROJECT_ID,
         )
+    elif len(project.store.customers) != len(build_demo_store().customers):
+        project = repo.update_store(project.id, build_demo_store())
+        assert project is not None
     bills = repo.list_bills(project.id)
     bill = next((item for item in bills if item.id == DEMO_BILL_ID), None)
     if bill is None:

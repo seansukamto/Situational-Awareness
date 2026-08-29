@@ -58,3 +58,15 @@ def test_run_has_contiguous_event_sequence_and_metrics_event():
     assert [event.seq for event in run.events] == list(range(1, len(run.events) + 1))
     assert run.events[-1].type == EventType.SIMULATION_COMPLETED
     assert run.events[-1].data["metrics"] == run.metrics.model_dump(mode="json")
+
+
+def test_customer_agents_move_and_exit_before_shutdown():
+    run = GameMaster(build_demo_store(), get_scenario("green-close"), 7).run()
+    customer_events = [
+        event
+        for event in run.events
+        if event.type in {EventType.CUSTOMER_MOVED, EventType.CUSTOMER_EXITED}
+    ]
+    assert customer_events
+    assert all(not customer.active for customer in run.store.customers)
+    assert any(event.type == EventType.CUSTOMER_EXITED for event in customer_events)

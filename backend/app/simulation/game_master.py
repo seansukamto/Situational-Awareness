@@ -32,7 +32,7 @@ class GameMaster:
         self.random = random.Random(seed)
         self.events: list[SimulationEvent] = []
         self.seq = 0
-        self.customer_count = 4
+        self.customer_count = sum(customer.active for customer in self.store.customers)
         self.total_kwh = 0.0
         self.after_hours_kwh = 0.0
         self.rejected_actions = 0
@@ -78,15 +78,61 @@ class GameMaster:
     def _update_environment(self, minute: int) -> None:
         closing = self.store.closing_minute
         previous = self.customer_count
-        if minute < closing - 10:
-            self.customer_count = max(1, 4 + self.random.choice([-1, 0, 0, 1]))
-        elif minute < closing:
-            self.customer_count = max(0, self.customer_count - self.random.choice([0, 1, 1]))
-        elif minute == closing:
+        if minute == closing:
             self._emit(minute, EventType.STORE_CLOSED, "The store has closed to new customers.")
-            self.customer_count = max(0, self.customer_count - 1)
-        else:
-            self.customer_count = max(0, self.customer_count - self.random.choice([0, 1, 1, 1]))
+
+        for customer in self.store.customers:
+            if not customer.active:
+                continue
+            draw = random.Random(f"{self.seed}:{minute}:{customer.id}:customer").random()
+            minutes_after_close = minute - closing
+            if minutes_after_close >= 15 or (
+                minutes_after_close >= 0
+                and draw < min(0.85, 0.25 + minutes_after_close / 18)
+            ):
+                previous_position = customer.position.model_copy()
+                customer.active = False
+                customer.zone_id = "exit"
+                customer.position = customer.position.model_copy(update={"x": -6.2, "z": -3.4})
+                self._emit(
+                    minute,
+                    EventType.CUSTOMER_EXITED,
+                    f"{customer.label} left the store.",
+                    agent_id=customer.id,
+                    data={
+                        "from": previous_position.model_dump(),
+                        "to": customer.position.model_dump(),
+                        "segment": customer.segment,
+                    },
+                )
+                continue
+
+            target_zone = self._customer_target_zone(customer.id, minute)
+            zone = next(item for item in self.store.zones if item.id == target_zone)
+            previous_position = customer.position.model_copy()
+            customer.zone_id = zone.id
+            jitter = random.Random(f"{self.seed}:{minute}:{customer.id}:position")
+            customer.position = zone.center.model_copy(
+                update={
+                    "x": zone.center.x + jitter.uniform(-zone.width * 0.25, zone.width * 0.25),
+                    "z": zone.center.z + jitter.uniform(-zone.depth * 0.25, zone.depth * 0.25),
+                }
+            )
+            if customer.position != previous_position:
+                self._emit(
+                    minute,
+                    EventType.CUSTOMER_MOVED,
+                    f"{customer.label} moved through {zone.label}.",
+                    agent_id=customer.id,
+                    data={
+                        "from": previous_position.model_dump(),
+                        "to": customer.position.model_dump(),
+                        "zone_id": zone.id,
+                        "segment": customer.segment,
+                    },
+                )
+
+        self.customer_count = sum(customer.active for customer in self.store.customers)
 
         if self.customer_count != previous:
             self._emit(
@@ -95,6 +141,19 @@ class GameMaster:
                 f"Customer count changed to {self.customer_count}.",
                 data={"customer_count": self.customer_count},
             )
+
+    def _customer_target_zone(self, customer_id: str, minute: int) -> str:
+        if minute >= self.store.closing_minute:
+            return "checkout"
+        paths = {
+            "customer_01": ["sales_floor", "checkout"],
+            "customer_02": ["display_wall", "sales_floor"],
+            "customer_03": ["sales_floor", "display_wall"],
+            "customer_04": ["display_wall", "checkout"],
+        }
+        options = paths.get(customer_id, ["sales_floor"])
+        step = max(0, minute - self.scenario.start_minute) // self.scenario.tick_minutes
+        return options[step % len(options)]
 
     def _integrate_energy(self, minute: int) -> None:
         tick_hours = self.scenario.tick_minutes / 60

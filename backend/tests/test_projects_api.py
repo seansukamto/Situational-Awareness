@@ -4,6 +4,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.projects.repository import SQLiteRepository
+from app.projects.models import ProjectCreate
+from app.simulation import build_demo_store
 
 
 def test_demo_bootstrap_and_analysis(tmp_path):
@@ -27,6 +29,21 @@ def test_demo_bootstrap_and_analysis(tmp_path):
             "annual_utility_savings"
         ]["p10"]
         assert body["calibration"]["model_coverage_ratio"] < 1
+
+
+def test_demo_bootstrap_refreshes_an_older_store_model(tmp_path):
+    repository = SQLiteRepository(tmp_path / "upgrade.sqlite3")
+    old_store = build_demo_store()
+    old_store.customers = []
+    repository.create_project(
+        ProjectCreate(name="Old demo", store=old_store),
+        project_id="project_demo_sg_01",
+    )
+    app.state.repository = repository
+    with TestClient(app) as client:
+        response = client.post("/api/demo/bootstrap")
+        assert response.status_code == 200
+        assert len(response.json()["project"]["store"]["customers"]) == 4
 
 
 def test_uploaded_bill_requires_confirmation(tmp_path):

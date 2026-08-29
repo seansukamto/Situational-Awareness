@@ -5,6 +5,8 @@ from .models import (
     AgentRole,
     AgentTraits,
     Criticality,
+    Customer,
+    CustomerSegment,
     Equipment,
     EquipmentState,
     Intervention,
@@ -125,6 +127,36 @@ def build_demo_store() -> Store:
             ),
         ),
     ]
+    customers = [
+        Customer(
+            id="customer_01",
+            label="Purposeful shopper",
+            segment=CustomerSegment.MISSION_SHOPPER,
+            zone_id="sales_floor",
+            position=Position(x=-1.2, z=0.8),
+        ),
+        Customer(
+            id="customer_02",
+            label="Display browser",
+            segment=CustomerSegment.BROWSER,
+            zone_id="display_wall",
+            position=Position(x=3.4, z=1.8),
+        ),
+        Customer(
+            id="customer_03",
+            label="Value seeker",
+            segment=CustomerSegment.VALUE_SEEKER,
+            zone_id="sales_floor",
+            position=Position(x=0.8, z=3.2),
+        ),
+        Customer(
+            id="customer_04",
+            label="Late browser",
+            segment=CustomerSegment.BROWSER,
+            zone_id="display_wall",
+            position=Position(x=3.6, z=-0.4),
+        ),
+    ]
     return Store(
         id="store_demo_01",
         name="Situational Awareness Demo Store",
@@ -134,6 +166,7 @@ def build_demo_store() -> Store:
         zones=zones,
         equipment=equipment,
         agents=agents,
+        customers=customers,
         tariff_sgd_per_kwh=0.3191,
         grid_emission_factor_kg_per_kwh=0.402,
     )

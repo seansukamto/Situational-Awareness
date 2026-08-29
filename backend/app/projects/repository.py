@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+from ..simulation.models import Store
 from .models import (
     BillConfirmation,
     BillStatus,
@@ -105,6 +106,15 @@ class SQLiteRepository:
             cursor = connection.execute(
                 "UPDATE projects SET settings_json = ?, updated_at = ? WHERE id = ?",
                 (settings.model_dump_json(), now.isoformat(), project_id),
+            )
+        return None if cursor.rowcount == 0 else self.get_project(project_id)
+
+    def update_store(self, project_id: str, store: Store) -> Project | None:
+        now = _now()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "UPDATE projects SET store_json = ?, updated_at = ? WHERE id = ?",
+                (store.model_dump_json(), now.isoformat(), project_id),
             )
         return None if cursor.rowcount == 0 else self.get_project(project_id)
 

@@ -24,6 +24,12 @@ class AgentRole(StrEnum):
     CASHIER = "cashier"
 
 
+class CustomerSegment(StrEnum):
+    BROWSER = "browser"
+    MISSION_SHOPPER = "mission_shopper"
+    VALUE_SEEKER = "value_seeker"
+
+
 class ActionType(StrEnum):
     MOVE_TO = "move_to"
     TOGGLE_EQUIPMENT = "toggle_equipment"
@@ -36,6 +42,8 @@ class EventType(StrEnum):
     SIMULATION_STARTED = "simulation_started"
     STORE_CLOSED = "store_closed"
     CUSTOMER_COUNT_CHANGED = "customer_count_changed"
+    CUSTOMER_MOVED = "customer_moved"
+    CUSTOMER_EXITED = "customer_exited"
     NUDGE_SENT = "nudge_sent"
     AGENT_MOVED = "agent_moved"
     ACTION_ACCEPTED = "action_accepted"
@@ -97,6 +105,16 @@ class Agent(BaseModel):
     shift_ended: bool = False
 
 
+class Customer(BaseModel):
+    id: str
+    label: str
+    segment: CustomerSegment
+    zone_id: str
+    position: Position
+    active: bool = True
+    satisfaction: float = Field(default=0.85, ge=0, le=1)
+
+
 class Store(BaseModel):
     id: str
     name: str
@@ -107,6 +125,7 @@ class Store(BaseModel):
     zones: list[Zone]
     equipment: list[Equipment]
     agents: list[Agent]
+    customers: list[Customer] = Field(default_factory=list)
     tariff_sgd_per_kwh: float
     grid_emission_factor_kg_per_kwh: float
 

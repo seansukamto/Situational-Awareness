@@ -28,6 +28,20 @@ Close is a scenario inside Situational Awareness, not the product name.
 - Every output labels measured, derived, assumed, and simulated evidence. The
   synthetic bill in `data/demo/` is fictional and safe for demonstrations.
 
+## Simulation replay
+
+- The Python Game Master advances a deterministic store clock and evaluates
+  staff proposals against role, equipment-criticality, and customer-presence
+  constraints.
+- Staff and individual consumer agents move through the same authoritative
+  world. Baseline and intervention runs use paired random draws so the
+  intervention changes probabilities rather than the underlying random event.
+- React Three Fiber reconstructs the world from the append-only event ledger.
+  Replay controls never mutate the simulation; they project state at a chosen
+  event sequence number.
+- Green Close is currently the first intervention. The scenario switch is
+  intentionally separate from the Situational Awareness product identity.
+
 ## Local development
 
 ### Backend
