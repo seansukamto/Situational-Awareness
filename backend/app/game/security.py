@@ -21,3 +21,7 @@ def hash_staff_pin(pin: str, *, salt: bytes | None = None) -> tuple[bytes, bytes
 def verify_staff_pin(pin: str, salt: bytes, expected_digest: bytes) -> bool:
     _, actual_digest = hash_staff_pin(pin, salt=salt)
     return hmac.compare_digest(actual_digest, expected_digest)
+
+
+def hash_session_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()

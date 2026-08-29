@@ -83,6 +83,10 @@ rates in `.env.example` are configured.
 - The **Staff handoff** action creates a random, 24-hour checklist token and a
   scannable QR code. The mobile view exposes closing tasks only—never utility,
   cost, or assumption data.
+- The live staff-game API supports project-scoped profiles, local 3D avatars,
+  dated QR sessions, an atomically claimed task marketplace, deterministic
+  individual points, and a sequence-numbered leaderboard ledger. The manager
+  interface for this flow is being built on the same safety boundary.
 - Protected equipment is excluded from the staff checklist. The public task
   API accepts only task IDs already authorized in that checklist session.
 - Event explanations cite the exact event sequence, time, transition, and

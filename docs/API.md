@@ -72,6 +72,31 @@ equipment authorization must reference the project's store snapshot, and PINs
 are stored only as salted scrypt hashes. Authentication fields are never
 returned by the API.
 
+## Staff sustainability game
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET/POST | `/api/projects/{project_id}/task-templates` | List or create safe, reusable sustainability challenges |
+| GET/POST | `/api/projects/{project_id}/game-days` | List or create dated game sessions |
+| GET | `/api/projects/{project_id}/game-days/{game_day_id}` | Read a manager-visible game day and QR join token |
+| POST | `/api/projects/{project_id}/game-days/{game_day_id}/start` | Snapshot active task templates into the day ledger |
+| POST | `/api/projects/{project_id}/game-days/{game_day_id}/close` | Close the live task market without rewriting history |
+| GET | `/api/game/join/{join_token}` | Read the scoped active roster for a QR join page |
+| POST | `/api/game/join/{join_token}` | Verify staff PIN and issue a hashed, day-scoped bearer session |
+| GET | `/api/game/tasks` | List eligible available tasks and the player's own tasks |
+| POST | `/api/game/tasks/{task_id}/claim` | Atomically reserve one available task for the player |
+| POST | `/api/game/tasks/{task_id}/release` | Return the player's claimed task to the market |
+| POST | `/api/game/tasks/{task_id}/complete` | Complete once and award deterministic individual points |
+| GET | `/api/game/leaderboard` | Read the scoped individual leaderboard |
+| GET | `/api/projects/{project_id}/game-days/{game_day_id}/leaderboard` | Read the manager leaderboard |
+| GET | `/api/projects/{project_id}/game-days/{game_day_id}/events` | Read the authoritative, sequence-numbered day ledger |
+
+Task templates cannot reference protected equipment, and equipment challenges
+must use the authoritative equipment zone and role permissions. Claim updates
+use a versioned SQLite transaction so two staff members cannot win the same
+task. Session tokens are returned once and stored only as SHA-256 hashes. Score
+entries are unique per task instance, preventing duplicate completion points.
+
 ## Error contract
 
 Validation failures return `422`, missing resources return `404`, expired

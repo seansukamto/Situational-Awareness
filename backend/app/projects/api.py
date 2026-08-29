@@ -514,6 +514,8 @@ def privacy_summary() -> dict:
             "store configuration",
             "scenario assumptions",
             "simulation outputs",
+            "staff game profiles and avatar selections",
+            "game-day task, score, and replay events",
             "staff checklist completion state",
         ],
         "excluded_by_default": [
