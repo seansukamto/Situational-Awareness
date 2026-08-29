@@ -92,7 +92,9 @@ rates in `.env.example` are configured.
   energy, water, waste, food, transport, and buying habits with equipment,
   zone, or store-wide targets.
 - Closing a game day produces a structured AI analysis with deterministic
-  fallback and an immutable learned-policy version. Only server-validated
+  fallback, per-task evidence labels and advisory task-design improvements, and
+  an immutable learned-policy version. Missing outcome data stays labelled
+  unmeasured; AI recommendations require manager approval. Only server-validated
   domain point multipliers between `0.90x` and `1.10x` may carry into the next
   day; protected loads, staff authority, and employment decisions remain
   permanent guardrails outside the learning loop. Prior verified completions

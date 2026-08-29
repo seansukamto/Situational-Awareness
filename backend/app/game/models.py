@@ -156,6 +156,12 @@ class VerificationStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class ImpactEvidenceLevel(StrEnum):
+    MEASURED = "measured"
+    ESTIMATED = "estimated"
+    UNMEASURED = "unmeasured"
+
+
 class GameEventType(StrEnum):
     DAY_CREATED = "day_created"
     DAY_STARTED = "day_started"
@@ -173,6 +179,8 @@ class GameEventType(StrEnum):
 class TaskTemplateCreate(BaseModel):
     label: str = Field(min_length=3, max_length=120)
     description: str = Field(min_length=3, max_length=500)
+    sustainability_mechanism: str = Field(default="", max_length=500)
+    impact_metric: str | None = Field(default=None, max_length=120)
     domain: SustainabilityDomain
     zone_id: str | None = Field(default=None, max_length=120)
     equipment_id: str | None = Field(default=None, max_length=120)
@@ -193,6 +201,8 @@ class TaskTemplateCreate(BaseModel):
             raise ValueError("available_until_minute must be after available_from_minute")
         if self.maximum_points < self.base_points:
             raise ValueError("maximum_points must be at least base_points")
+        if (self.estimated_impact_value is None) != (self.estimated_impact_unit is None):
+            raise ValueError("estimated impact value and unit must be configured together")
         return self
 
 
@@ -282,6 +292,8 @@ class TaskInstance(BaseModel):
     template_id: str
     label: str
     description: str
+    sustainability_mechanism: str = ""
+    impact_metric: str | None = None
     domain: SustainabilityDomain
     zone_id: str | None = None
     equipment_id: str | None = None
@@ -350,7 +362,7 @@ class LeaderboardEntry(BaseModel):
     tasks_completed: int
 
 
-GAME_LEARNING_PROMPT_VERSION = "staff-game-learning-2026.08"
+GAME_LEARNING_PROMPT_VERSION = "staff-game-learning-2026.08-v2"
 
 
 class DomainPerformance(BaseModel):
@@ -375,10 +387,48 @@ class GameDayLearningMetrics(BaseModel):
     domain_performance: dict[SustainabilityDomain, DomainPerformance]
 
 
+class TaskLearningEvidence(BaseModel):
+    task_instance_id: str
+    task_label: str
+    task_description: str
+    sustainability_mechanism: str
+    domain: SustainabilityDomain
+    verification_method: VerificationMethod
+    verification_status: VerificationStatus
+    status: TaskStatus
+    claimed: bool
+    releases_back: int = Field(ge=0)
+    exceptions_reported: int = Field(ge=0)
+    claim_to_completion_minutes: float | None = Field(default=None, ge=0)
+    points_awarded: int = Field(ge=0)
+    impact_metric: str | None = None
+    estimated_impact_value: float | None = Field(default=None, ge=0)
+    estimated_impact_unit: str | None = None
+    evidence_level: ImpactEvidenceLevel
+
+
+class GameDayLearningEvidence(BaseModel):
+    metrics: GameDayLearningMetrics
+    tasks: list[TaskLearningEvidence]
+
+
+class TaskLearningAssessment(BaseModel):
+    task_instance_id: str = Field(min_length=1, max_length=120)
+    task_label: str = Field(min_length=1, max_length=120)
+    sustainability_relevance: str = Field(min_length=1, max_length=600)
+    evidence_level: ImpactEvidenceLevel
+    engagement_result: str = Field(min_length=1, max_length=400)
+    measurement_gap: str = Field(min_length=1, max_length=400)
+    recommended_revision: str = Field(min_length=1, max_length=700)
+    suggested_metric: str = Field(min_length=1, max_length=200)
+    manager_approval_required: bool = True
+
+
 class GameLearningNarrative(BaseModel):
     summary: str = Field(min_length=1, max_length=700)
     patterns: list[str] = Field(default_factory=list, max_length=6)
     recommendations: list[str] = Field(default_factory=list, max_length=6)
+    task_assessments: list[TaskLearningAssessment] = Field(default_factory=list, max_length=24)
 
 
 class LearnedGamePolicy(BaseModel):

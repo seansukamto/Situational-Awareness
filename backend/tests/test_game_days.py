@@ -29,6 +29,8 @@ def create_template(client: TestClient, project_id: str, **overrides) -> dict:
     payload = {
         "label": "Stockroom lights challenge",
         "description": "Switch off the stockroom lights when the task is released.",
+        "sustainability_mechanism": "Avoid after-hours electricity use from non-critical lighting.",
+        "impact_metric": "kWh avoided",
         "domain": "energy",
         "zone_id": "stockroom",
         "equipment_id": "stockroom_lights",
@@ -202,6 +204,12 @@ def test_end_of_day_analysis_versions_and_applies_a_bounded_policy(tmp_path):
         assert analysis.json()["metrics"]["tasks_released"] == 1
         assert analysis.json()["metrics"]["tasks_completed"] == 0
         assert analysis.json()["metrics"]["domain_performance"]["energy"]["completion_rate"] == 0
+        assessment = analysis.json()["narrative"]["task_assessments"][0]
+        assert assessment["task_label"] == "Stockroom lights challenge"
+        assert assessment["evidence_level"] == "estimated"
+        assert "after-hours electricity" in assessment["sustainability_relevance"]
+        assert assessment["suggested_metric"] == "kWh avoided"
+        assert assessment["manager_approval_required"] is True
 
         policies = client.get(f"/api/projects/{project_id}/game-policies").json()
         assert len(policies) == 1

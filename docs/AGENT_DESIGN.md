@@ -57,8 +57,11 @@ bypass deterministic validators or perform authoritative arithmetic.
 The live game does not replay synthetic consumers or ask a model to mutate the
 store. Staff voluntarily snatch safe task instances from an atomic marketplace.
 Every join, claim, release, completion, and point award enters an immutable day
-ledger. After close, OpenAI or Ollama may produce a strict structured narrative;
-unavailable or invalid output falls back to deterministic analysis.
+ledger. After close, OpenAI or Ollama may produce a strict structured narrative
+and one assessment per task. The model receives task wording, sustainability
+mechanism, verification state, friction signals, timings, and configured impact
+metadata without staff names. Unavailable or invalid output falls back to
+deterministic analysis.
 
 The narrative is advisory. The only automatically applied learning fields are
 bounded domain point multipliers and a per-staff ordering of domains derived
@@ -66,7 +69,10 @@ from verified completion history. The next game day snapshots the exact policy
 version and exposes one explainable Game Master pick while keeping every other
 eligible task available. Model output cannot change protected equipment,
 role/zone/equipment authority, verification status, score arithmetic, or any
-employment decision.
+employment decision. Evidence labels are calculated by the server and restored
+after model generation, so an unmeasured or estimated outcome cannot be promoted
+to measured by the model. Task wording and metric suggestions require manager
+approval and are never written directly into the permanent prompt.
 
 ## Provider and memory boundary
 

@@ -47,6 +47,22 @@ export function GameLearningPanel({
         <div><span>Released back</span><strong>{metrics.tasks_released_back}</strong><small>task-friction signal</small></div>
       </div>
 
+      <section className="task-learning-assessments" aria-label="Per-task sustainability evidence">
+        <div><span>Task evidence</span><h3>Engagement is not impact.</h3><p>Each recommendation is advisory. Environmental outcomes remain measured, estimated, or unmeasured exactly as recorded by the server.</p></div>
+        <div>
+          {analysis.narrative.task_assessments.map((assessment) => (
+            <article key={assessment.task_instance_id}>
+              <header><strong>{assessment.task_label}</strong><span className={`impact-evidence impact-${assessment.evidence_level}`}>{assessment.evidence_level} impact</span></header>
+              <p><b>Sustainability relevance</b>{assessment.sustainability_relevance}</p>
+              <p><b>Engagement result</b>{assessment.engagement_result}</p>
+              <p><b>Measurement gap</b>{assessment.measurement_gap}</p>
+              <div><span>AI revision suggested</span><p>{assessment.recommended_revision}</p><small>Suggested metric: {assessment.suggested_metric}</small>{assessment.manager_approval_required && <em>Manager approval required</em>}</div>
+            </article>
+          ))}
+          {!analysis.narrative.task_assessments.length && <p className="game-empty-copy">No task-level evidence was recorded for this day.</p>}
+        </div>
+      </section>
+
       <div className="game-learning-body">
         <article>
           <span>Observed patterns</span>

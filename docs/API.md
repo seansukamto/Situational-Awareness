@@ -98,7 +98,10 @@ Task templates cannot reference protected equipment. Templates may use the
 `energy`, `water`, `waste`, `food`, `transport`, or
 `buying` domain. Non-equipment habits may target a known zone or the whole
 store while equipment tasks inherit the equipment's authoritative zone and
-role allow-list. Claim updates
+role allow-list. Templates can record a plain-language `sustainability_mechanism`,
+an `impact_metric`, and an optional paired estimated-impact value and unit.
+Missing outcome data remains explicitly unmeasured rather than being treated
+as zero impact. Claim updates
 use a versioned SQLite transaction so two staff members cannot win the same
 task. Session tokens are returned once and stored only as SHA-256 hashes. Score
 entries are unique per task instance, preventing duplicate completion points.
@@ -107,7 +110,11 @@ participants who have not yet earned points.
 Closing a day is idempotent: it stores one structured analysis and one learned
 policy for that ledger. OpenAI or Ollama is used only when the project's
 allow-listed backend provider is configured; invalid or unavailable output
-falls back to deterministic analysis. AI narrative is advisory. The automatic
+falls back to deterministic analysis. The analysis receives privacy-bounded
+task evidence without staff names and returns one per-task assessment covering
+sustainability relevance, engagement, evidence level, measurement gaps, a
+suggested metric, and an advisory revision. Server-derived evidence labels
+cannot be overwritten by model output. AI narrative is advisory. The automatic
 policy surface is limited to validated per-domain point multipliers in the
 `0.90`–`1.10` range, and each new game day snapshots the policy version it will
 use. Data-only prior-day context is recorded in the day-start event so replay

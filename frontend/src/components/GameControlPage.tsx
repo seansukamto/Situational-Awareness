@@ -37,6 +37,10 @@ export function GameControlPage({ project }: { project: Project }) {
   const [taskDomain, setTaskDomain] = useState<SustainabilityDomain>("energy");
   const [taskLabel, setTaskLabel] = useState("Green action challenge");
   const [taskDescription, setTaskDescription] = useState("Complete this safe sustainability action during today's shift.");
+  const [sustainabilityMechanism, setSustainabilityMechanism] = useState("Explain how this action reduces resource use, waste, or emissions.");
+  const [impactMetric, setImpactMetric] = useState("");
+  const [estimatedImpactValue, setEstimatedImpactValue] = useState("");
+  const [estimatedImpactUnit, setEstimatedImpactUnit] = useState("");
   const [basePoints, setBasePoints] = useState(50);
   const days = useQuery({ queryKey: ["game-days", project.id], queryFn: () => listGameDays(project.id) });
   const templates = useQuery({ queryKey: ["task-templates", project.id], queryFn: () => listTaskTemplates(project.id) });
@@ -116,7 +120,7 @@ export function GameControlPage({ project }: { project: Project }) {
         <article className="task-pool-card">
           <div className="game-card-heading"><div><span>02 · Challenge pool</span><h2>Available task templates</h2></div><button type="button" onClick={() => setShowTaskForm(true)}>＋ New task</button></div>
           <div className="task-template-list">
-            {(templates.data ?? []).map((template) => <div key={template.id}><span>{template.domain}</span><p><strong>{template.label}</strong><small>{template.zone_id ?? "Store-wide"} · {template.base_points} pts · {template.allowed_roles.map(roleLabel).join(", ")}</small></p><i>{template.verification_method.replaceAll("_", " ")}</i></div>)}
+            {(templates.data ?? []).map((template) => <div key={template.id}><span>{template.domain}</span><p><strong>{template.label}</strong><small>{template.zone_id ?? "Store-wide"} · {template.base_points} pts · {template.allowed_roles.map(roleLabel).join(", ")}</small><em>{template.sustainability_mechanism || "Sustainability mechanism not specified"}</em></p><i>{template.estimated_impact_value == null ? "Impact not measured" : `Estimated · ${template.estimated_impact_value} ${template.estimated_impact_unit}`}</i></div>)}
             {!templates.isLoading && !templates.data?.length && <p className="game-empty-copy">Create at least one safe challenge before starting the game.</p>}
           </div>
         </article>
@@ -157,6 +161,8 @@ export function GameControlPage({ project }: { project: Project }) {
               createTemplateMutation.mutate({
                 label: taskLabel,
                 description: taskDescription,
+                sustainability_mechanism: sustainabilityMechanism,
+                impact_metric: impactMetric.trim() || null,
                 domain: taskDomain,
                 zone_id: selectedZoneId,
                 equipment_id: selectedEquipment?.id ?? null,
@@ -168,15 +174,22 @@ export function GameControlPage({ project }: { project: Project }) {
                 base_points: basePoints,
                 maximum_points: Math.max(basePoints + 10, basePoints),
                 verification_method: "self_confirmation",
-                estimated_impact_value: null,
-                estimated_impact_unit: null,
+                estimated_impact_value: estimatedImpactValue === "" ? null : Number(estimatedImpactValue),
+                estimated_impact_unit: estimatedImpactValue === "" ? null : estimatedImpactUnit.trim(),
               });
             }}>
               <label><span>Task name</span><input required minLength={3} value={taskLabel} onChange={(event) => setTaskLabel(event.target.value)} /></label>
               <label><span>Staff instruction</span><textarea required minLength={3} value={taskDescription} onChange={(event) => setTaskDescription(event.target.value)} /></label>
+              <label><span>Why this is sustainable</span><textarea required minLength={3} value={sustainabilityMechanism} onChange={(event) => setSustainabilityMechanism(event.target.value)} /></label>
+              <label><span>Outcome metric</span><input placeholder="e.g. kg diverted from general waste" value={impactMetric} onChange={(event) => setImpactMetric(event.target.value)} /></label>
+              <div className="task-impact-fields">
+                <label><span>Estimated impact (optional)</span><input type="number" min="0" step="any" value={estimatedImpactValue} onChange={(event) => setEstimatedImpactValue(event.target.value)} /></label>
+                <label><span>Impact unit</span><input required={estimatedImpactValue !== ""} disabled={estimatedImpactValue === ""} placeholder="e.g. kg" value={estimatedImpactUnit} onChange={(event) => setEstimatedImpactUnit(event.target.value)} /></label>
+              </div>
               <label><span>Sustainability domain</span><select value={taskDomain} onChange={(event) => setTaskDomain(event.target.value as SustainabilityDomain)}><option value="energy">Energy</option><option value="water">Water</option><option value="waste">Waste</option><option value="food">Food</option><option value="transport">Transport</option><option value="buying">Buying</option></select></label>
               <label><span>Safe task target</span><select value={taskTarget} onChange={(event) => setTaskTarget(event.target.value)}><option value="store">Store-wide</option><optgroup label="Zones">{project.store.zones.map((zone) => <option key={zone.id} value={`zone:${zone.id}`}>{zone.label} (zone)</option>)}</optgroup>{selectableEquipment.length > 0 && <optgroup label="Authorized equipment">{selectableEquipment.map((item) => <option key={item.id} value={`equipment:${item.id}`}>{item.label}</option>)}</optgroup>}</select></label>
               <label><span>Base individual points</span><input type="number" min="1" max="10000" value={basePoints} onChange={(event) => setBasePoints(Number(event.target.value))} /></label>
+              <p className="game-safety-callout"><strong>Evidence boundary</strong> Points measure engagement, not environmental impact. Missing impact data stays labelled unmeasured; AI wording and metric suggestions require manager approval.</p>
               <p className="game-safety-callout"><strong>Game Master boundary</strong> Protected loads never appear as targets. Equipment challenges inherit authoritative role and zone permissions; zone and store-wide habits remain limited to configured staff roles.</p>
               {createTemplateMutation.isError && <p className="form-error">{createTemplateMutation.error.message}</p>}
               <div className="run-create-actions"><button type="button" onClick={() => setShowTaskForm(false)}>Cancel</button><button className="primary" type="submit" disabled={createTemplateMutation.isPending}>Add challenge</button></div>

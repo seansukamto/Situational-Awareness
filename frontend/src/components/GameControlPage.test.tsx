@@ -98,6 +98,10 @@ describe("GameControlPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "＋ New task" }));
     fireEvent.change(screen.getByLabelText("Task name"), { target: { value: "Sort reusable packaging" } });
     fireEvent.change(screen.getByLabelText("Staff instruction"), { target: { value: "Separate reusable packaging from general waste." } });
+    fireEvent.change(screen.getByLabelText("Why this is sustainable"), { target: { value: "Divert clean packaging for reuse instead of disposal." } });
+    fireEvent.change(screen.getByLabelText("Outcome metric"), { target: { value: "kg diverted from general waste" } });
+    fireEvent.change(screen.getByLabelText("Estimated impact (optional)"), { target: { value: "2.5" } });
+    fireEvent.change(screen.getByLabelText("Impact unit"), { target: { value: "kg" } });
     fireEvent.change(screen.getByLabelText("Sustainability domain"), { target: { value: "waste" } });
     fireEvent.change(screen.getByLabelText("Safe task target"), { target: { value: "zone:sales" } });
     fireEvent.click(screen.getByRole("button", { name: "Add challenge" }));
@@ -113,6 +117,10 @@ describe("GameControlPage", () => {
       zone_id: "sales",
       equipment_id: null,
       allowed_roles: ["manager", "closing_associate", "cashier"],
+      sustainability_mechanism: "Divert clean packaging for reuse instead of disposal.",
+      impact_metric: "kg diverted from general waste",
+      estimated_impact_value: 2.5,
+      estimated_impact_unit: "kg",
     });
   });
 });

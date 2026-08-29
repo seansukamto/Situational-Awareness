@@ -99,6 +99,8 @@ const task: TaskInstance = {
   template_id: "template_lights",
   label: "Switch off unused display lights",
   description: "Confirm the quiet display is no longer needed, then switch it off.",
+  sustainability_mechanism: "Avoid unnecessary after-hours electricity use.",
+  impact_metric: "kWh avoided",
   domain: "energy",
   zone_id: "sales",
   equipment_id: "display_lights",

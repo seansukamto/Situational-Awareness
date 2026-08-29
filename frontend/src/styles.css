@@ -79,6 +79,25 @@
 .game-learning-metrics span { color: #79857e; font-size: 9px; text-transform: uppercase; }
 .game-learning-metrics strong { color: #183c2b; font-size: 24px; }
 .game-learning-metrics small { color: #6f7b74; font-size: 10px; }
+.task-learning-assessments { display: grid; grid-template-columns: minmax(220px, .55fr) 1.45fr; gap: 24px; padding: 24px 26px; border-bottom: 1px solid #dce4df; background: #f8fbf9; }
+.task-learning-assessments > div:first-child > span { color: #34805a; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.task-learning-assessments h3 { margin: 6px 0 8px; color: #173525; font-size: 20px; }
+.task-learning-assessments > div:first-child p { margin: 0; color: #64736b; font-size: 11px; line-height: 1.55; }
+.task-learning-assessments > div:last-child { display: grid; gap: 12px; }
+.task-learning-assessments article { padding: 17px 18px; border: 1px solid #dce7e0; border-radius: 14px; background: #fff; }
+.task-learning-assessments article header { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
+.task-learning-assessments article header strong { color: #173525; }
+.impact-evidence { padding: 5px 8px; border-radius: 99px; font-size: 9px; font-weight: 850; text-transform: uppercase; }
+.impact-measured { color: #17653e; background: #dff5e8; }
+.impact-estimated { color: #775612; background: #fff1ca; }
+.impact-unmeasured { color: #86503f; background: #f9e5df; }
+.task-learning-assessments article > p { display: grid; grid-template-columns: 145px 1fr; gap: 12px; margin: 8px 0; color: #5e6d65; font-size: 11px; line-height: 1.5; }
+.task-learning-assessments article > p b { color: #344b3e; }
+.task-learning-assessments article > div { margin-top: 13px; padding: 13px; border-radius: 10px; background: #edf7f1; }
+.task-learning-assessments article > div > span { color: #217348; font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.task-learning-assessments article > div p { margin: 6px 0; color: #405b4b; font-size: 11px; line-height: 1.5; }
+.task-learning-assessments article > div small, .task-learning-assessments article > div em { display: block; color: #6d7e74; font-size: 10px; font-style: normal; }
+.task-learning-assessments article > div em { margin-top: 6px; color: #865f1f; font-weight: 800; }
 .game-learning-body { display: grid; grid-template-columns: 1fr 1fr 1.25fr; }
 .game-learning-body article { padding: 22px 24px; border-right: 1px solid #e2e8e4; }
 .game-learning-body article:last-child { border-right: 0; }
@@ -100,6 +119,7 @@
   .game-learning-metrics > div:nth-child(2) { border-right: 0; }
   .game-learning-metrics > div:nth-child(-n+2) { border-bottom: 1px solid #e2e8e4; }
   .game-learning-body { grid-template-columns: 1fr; }
+  .task-learning-assessments { grid-template-columns: 1fr; }
   .game-learning-body article { border-right: 0; border-bottom: 1px solid #e2e8e4; }
 }
 
@@ -147,6 +167,7 @@
 .task-template-list p { margin: 0; }
 .task-template-list strong, .task-template-list small { display: block; }
 .task-template-list small { margin-top: 4px; color: #78887f; }
+.task-template-list em { display: block; margin-top: 7px; color: #53675c; font-size: .72rem; font-style: normal; line-height: 1.45; }
 .task-template-list i { color: #6f8176; font-size: .72rem; font-style: normal; text-transform: capitalize; }
 .game-empty-copy { color: #78887f; line-height: 1.55; }
 .manager-leaderboard > div, .staff-live-leaderboard > div { display: grid; grid-template-columns: 42px 1fr auto; gap: 12px; align-items: center; padding: 15px 0; border-top: 1px solid #edf1ee; }
@@ -159,6 +180,7 @@
 .task-create-modal label, .staff-create-modal label { display: grid; gap: 7px; margin-bottom: 15px; color: #405348; font-size: .82rem; font-weight: 750; }
 .task-create-modal input, .task-create-modal select, .task-create-modal textarea, .staff-create-modal input, .staff-create-modal select { box-sizing: border-box; width: 100%; padding: 12px 13px; border: 1px solid #ccd9d0; border-radius: 10px; background: #fbfdfb; font: inherit; }
 .task-create-modal textarea { min-height: 90px; resize: vertical; }
+.task-impact-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .game-safety-callout { padding: 15px; border-left: 4px solid #54ba79; color: #52685b; background: #eef8f1; line-height: 1.5; }
 .game-safety-callout strong { display: block; color: #174e31; }
 .staff-roster-stats { display: grid; grid-template-columns: repeat(2, auto); gap: 12px; }
@@ -236,6 +258,8 @@
 .staff-task-card > div { display: flex; justify-content: space-between; color: #247449; font-size: .7rem; font-weight: 850; text-transform: uppercase; }
 .staff-task-card h3 { margin: 10px 0 5px; }
 .staff-task-card p { color: #62756a; line-height: 1.5; }
+.staff-task-card p.task-sustainability-link { display: grid; gap: 3px; margin: 12px 0 0; padding: 10px 11px; border-radius: 10px; color: #42604f; background: #edf7f1; font-size: .78rem; }
+.staff-task-card p.task-sustainability-link strong { color: #1d7044; font-size: .65rem; text-transform: uppercase; }
 .staff-task-card footer { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-top: 16px; }
 .staff-task-card footer small { color: #74877c; text-transform: capitalize; }
 .staff-task-card button { padding: 10px 14px; border: 0; border-radius: 9px; color: #fff; background: #187041; font-weight: 850; cursor: pointer; }
@@ -265,6 +289,7 @@
   .player-score-hero { grid-template-columns: auto 1fr; }
   .player-score { grid-column: 1 / -1; padding: 14px 0 0; border-top: 1px solid rgba(255,255,255,.15); border-left: 0; text-align: left; }
   .staff-task-card footer { align-items: stretch; flex-direction: column; }
+  .task-impact-fields { grid-template-columns: 1fr; gap: 0; }
 }
 
 * { box-sizing: border-box; }

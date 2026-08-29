@@ -415,6 +415,8 @@ def start_game_day(
             template_id=template.id,
             label=template.label,
             description=template.description,
+            sustainability_mechanism=template.sustainability_mechanism,
+            impact_metric=template.impact_metric,
             domain=template.domain,
             zone_id=template.zone_id,
             equipment_id=template.equipment_id,

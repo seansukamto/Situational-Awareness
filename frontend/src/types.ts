@@ -428,6 +428,8 @@ export type VerificationMethod =
 export type TaskTemplateCreate = {
   label: string;
   description: string;
+  sustainability_mechanism: string;
+  impact_metric: string | null;
   domain: SustainabilityDomain;
   zone_id: string | null;
   equipment_id: string | null;
@@ -503,6 +505,8 @@ export type TaskInstance = {
   template_id: string;
   label: string;
   description: string;
+  sustainability_mechanism: string;
+  impact_metric: string | null;
   domain: SustainabilityDomain;
   zone_id: string | null;
   equipment_id: string | null;
@@ -581,6 +585,21 @@ export type GameLearningNarrative = {
   summary: string;
   patterns: string[];
   recommendations: string[];
+  task_assessments: TaskLearningAssessment[];
+};
+
+export type ImpactEvidenceLevel = "measured" | "estimated" | "unmeasured";
+
+export type TaskLearningAssessment = {
+  task_instance_id: string;
+  task_label: string;
+  sustainability_relevance: string;
+  evidence_level: ImpactEvidenceLevel;
+  engagement_result: string;
+  measurement_gap: string;
+  recommended_revision: string;
+  suggested_metric: string;
+  manager_approval_required: boolean;
 };
 
 export type LearnedGamePolicy = {

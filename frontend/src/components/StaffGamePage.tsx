@@ -30,8 +30,8 @@ function readSession(joinToken: string): GameJoinResponse | null {
 
 function taskImpact(task: TaskInstance): string {
   return task.estimated_impact_value == null
-    ? "Impact estimated after completion"
-    : `${task.estimated_impact_value} ${task.estimated_impact_unit ?? "impact"}`;
+    ? "Impact not measured"
+    : `Estimated impact · ${task.estimated_impact_value} ${task.estimated_impact_unit ?? "impact"}`;
 }
 
 
@@ -134,7 +134,7 @@ export function StaffGamePage({ joinToken }: { joinToken: string }) {
       <section className="staff-task-section">
         <div className="staff-task-heading"><div><span>Task market</span><h2>Available to snatch</h2></div><b>{available.length}</b></div>
         <div className="staff-task-list">
-          {available.map((task) => <article className={`staff-task-card available ${task.game_master_recommended ? "recommended" : ""}`} key={task.id}>{task.game_master_recommended && <aside><strong>✦ Game Master pick</strong><span>{task.recommendation_reason}</span></aside>}<div><span>{task.domain}</span><strong>{task.base_points} pts</strong></div><h3>{task.label}</h3><p>{task.description}</p><footer><small>{task.zone_id?.replaceAll("_", " ") ?? "Store-wide"} · {taskImpact(task)}</small><button type="button" disabled={claim.isPending} onClick={() => claim.mutate(task.id)}>Snatch task</button></footer></article>)}
+          {available.map((task) => <article className={`staff-task-card available ${task.game_master_recommended ? "recommended" : ""}`} key={task.id}>{task.game_master_recommended && <aside><strong>✦ Game Master pick</strong><span>{task.recommendation_reason}</span></aside>}<div><span>{task.domain}</span><strong>{task.base_points} pts</strong></div><h3>{task.label}</h3><p>{task.description}</p><p className="task-sustainability-link"><strong>Why it matters</strong>{task.sustainability_mechanism || "The sustainability mechanism has not been specified yet."}</p><footer><small>{task.zone_id?.replaceAll("_", " ") ?? "Store-wide"} · {taskImpact(task)}</small><button type="button" disabled={claim.isPending} onClick={() => claim.mutate(task.id)}>Snatch task</button></footer></article>)}
           {!available.length && <p className="staff-game-empty">No eligible tasks are available right now. Claimed tasks stay reserved for their player.</p>}
         </div>
       </section>
@@ -142,7 +142,7 @@ export function StaffGamePage({ joinToken }: { joinToken: string }) {
       <section className="staff-task-section claimed-section">
         <div className="staff-task-heading"><div><span>In progress</span><h2>My claimed tasks</h2></div><b>{mine.length}</b></div>
         <div className="staff-task-list">
-          {mine.map((task) => <article className="staff-task-card claimed" key={task.id}><div><span>Reserved for you</span><strong>{task.base_points} pts</strong></div><h3>{task.label}</h3><p>{task.description}</p><footer><button className="release-task" type="button" disabled={release.isPending || complete.isPending} onClick={() => release.mutate(task.id)}>Release</button><button type="button" disabled={complete.isPending} onClick={() => complete.mutate(task.id)}>Complete + points</button></footer></article>)}
+          {mine.map((task) => <article className="staff-task-card claimed" key={task.id}><div><span>Reserved for you</span><strong>{task.base_points} pts</strong></div><h3>{task.label}</h3><p>{task.description}</p><p className="task-sustainability-link"><strong>Why it matters</strong>{task.sustainability_mechanism || "The sustainability mechanism has not been specified yet."}</p><footer><button className="release-task" type="button" disabled={release.isPending || complete.isPending} onClick={() => release.mutate(task.id)}>Release</button><button type="button" disabled={complete.isPending} onClick={() => complete.mutate(task.id)}>Complete + points</button></footer></article>)}
           {!mine.length && <p className="staff-game-empty">Snatch a task from the market to begin.</p>}
         </div>
       </section>
