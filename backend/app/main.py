@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field
 from .projects.api import router as projects_router
 from .projects.repository import SQLiteRepository
 from .simulation import GameMaster, build_demo_store, get_scenario
-from .simulation.models import ScenarioComparison, SimulationRun, Store
+from .simulation.explain import explain_event
+from .simulation.models import EventExplanation, ScenarioComparison, SimulationRun, Store
 from .simulation.scenarios import list_scenarios
 
 
@@ -69,3 +70,16 @@ def compare_simulations(seed: int = Query(default=42, ge=0, le=2_147_483_647)):
     baseline = GameMaster(store, get_scenario("baseline"), seed).run()
     intervention = GameMaster(store, get_scenario("green-close"), seed).run()
     return GameMaster.compare(baseline, intervention)
+
+
+@app.get("/api/simulations/explanations", response_model=list[EventExplanation])
+def simulation_explanations(
+    scenario_id: str = Query(default="green-close"),
+    seed: int = Query(default=42, ge=0, le=2_147_483_647),
+) -> list[EventExplanation]:
+    try:
+        scenario = get_scenario(scenario_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    run = GameMaster(build_demo_store(), scenario, seed).run()
+    return [explain_event(event) for event in run.events]

@@ -29,6 +29,12 @@ def test_demo_bootstrap_and_analysis(tmp_path):
             "annual_utility_savings"
         ]["p10"]
         assert body["calibration"]["model_coverage_ratio"] < 1
+        report = client.get(
+            f"/api/projects/project_demo_sg_01/analyses/{body['id']}/report.md"
+        )
+        assert report.status_code == 200
+        assert "Proceed to a time-boxed in-store pilot" in report.text
+        assert "raw utility file was not retained" in report.text
 
 
 def test_demo_bootstrap_refreshes_an_older_store_model(tmp_path):
@@ -78,3 +84,26 @@ def test_uploaded_bill_requires_confirmation(tmp_path):
         assert confirmed.status_code == 200
         assert confirmed.json()["status"] == "confirmed"
         assert confirmed.json()["average_tariff_sgd_per_kwh"] == 0.32
+
+
+def test_staff_checklist_is_scoped_and_completable(tmp_path):
+    app.state.repository = SQLiteRepository(tmp_path / "checklist.sqlite3")
+    with TestClient(app) as client:
+        client.post("/api/demo/bootstrap")
+        response = client.post("/api/projects/project_demo_sg_01/checklists")
+        assert response.status_code == 201
+        checklist = response.json()
+        assert checklist["tasks"]
+        assert all(task["equipment_id"] != "cold_storage" for task in checklist["tasks"])
+
+        token = checklist["token"]
+        for task in checklist["tasks"]:
+            completed = client.post(
+                f"/api/checklists/{token}/tasks/{task['id']}/complete"
+            )
+            assert completed.status_code == 200
+        assert completed.json()["status"] == "completed"
+
+        privacy = client.get("/api/privacy")
+        assert privacy.status_code == 200
+        assert privacy.json()["raw_utility_files_retained"] is False

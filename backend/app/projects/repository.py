@@ -10,6 +10,7 @@ from ..simulation.models import Store
 from .models import (
     BillConfirmation,
     BillStatus,
+    ChecklistSession,
     ImpactAnalysis,
     Project,
     ProjectCreate,
@@ -60,6 +61,14 @@ class SQLiteRepository:
                     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                     payload_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS checklist_sessions (
+                    id TEXT PRIMARY KEY,
+                    token TEXT UNIQUE NOT NULL,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    payload_json TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
                 );
                 """
             )
@@ -216,6 +225,41 @@ class SQLiteRepository:
                     analysis.model_dump_json(),
                     analysis.generated_at.isoformat(),
                 ),
+            )
+
+    def get_analysis(self, analysis_id: str) -> ImpactAnalysis | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT payload_json FROM analyses WHERE id = ?", (analysis_id,)
+            ).fetchone()
+        return None if row is None else ImpactAnalysis.model_validate_json(row["payload_json"])
+
+    def save_checklist(self, checklist: ChecklistSession) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT INTO checklist_sessions VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    checklist.id,
+                    checklist.token,
+                    checklist.project_id,
+                    checklist.model_dump_json(),
+                    checklist.expires_at.isoformat(),
+                    checklist.created_at.isoformat(),
+                ),
+            )
+
+    def get_checklist(self, token: str) -> ChecklistSession | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT payload_json FROM checklist_sessions WHERE token = ?", (token,)
+            ).fetchone()
+        return None if row is None else ChecklistSession.model_validate_json(row["payload_json"])
+
+    def update_checklist(self, checklist: ChecklistSession) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE checklist_sessions SET payload_json = ?, updated_at = ? WHERE id = ?",
+                (checklist.model_dump_json(), _now().isoformat(), checklist.id),
             )
 
     @staticmethod

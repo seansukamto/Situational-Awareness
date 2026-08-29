@@ -174,6 +174,39 @@ export type ImpactAnalysis = {
   };
 };
 
+export type EventExplanation = {
+  event_seq: number;
+  summary: string;
+  rationale: string;
+  rules_checked: string[];
+  grounded_in: string[];
+  counterfactual: string;
+  confidence: "high" | "medium";
+};
+
+export type ChecklistTask = {
+  id: string;
+  equipment_id: string;
+  label: string;
+  zone_label: string;
+  assigned_role: string;
+  criticality: string;
+  completed_at: string | null;
+};
+
+export type ChecklistSession = {
+  id: string;
+  token: string;
+  project_id: string;
+  store_name: string;
+  scenario_label: string;
+  status: "open" | "completed";
+  tasks: ChecklistTask[];
+  safety_note: string;
+  created_at: string;
+  expires_at: string;
+};
+
 export type WorldState = {
   staffPositions: Record<string, Position>;
   customerPositions: Record<string, Position>;

@@ -126,3 +126,31 @@ class ImpactAnalysis(BaseModel):
     assumptions: list[ImpactAssumption]
     risks: list[str]
     calibration: dict[str, Any]
+
+
+class ChecklistTask(BaseModel):
+    id: str
+    equipment_id: str
+    label: str
+    zone_label: str
+    assigned_role: str
+    criticality: str
+    completed_at: datetime | None = None
+
+
+class ChecklistSession(BaseModel):
+    id: str
+    token: str
+    project_id: str
+    store_name: str
+    scenario_label: str = "Green Close"
+    status: str = "open"
+    tasks: list[ChecklistTask]
+    safety_note: str
+    created_at: datetime
+    expires_at: datetime
+
+
+class ChecklistCompletion(BaseModel):
+    task_id: str
+    completed: bool

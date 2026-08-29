@@ -42,6 +42,22 @@ Close is a scenario inside Situational Awareness, not the product name.
 - Green Close is currently the first intervention. The scenario switch is
   intentionally separate from the Situational Awareness product identity.
 
+## Manager and staff workflow
+
+- Managers can upload a bill, review every extracted field, change scenario
+  assumptions, compare matched baseline/intervention runs, and download a
+  Markdown decision brief grounded in the saved analysis.
+- The **Staff handoff** action creates a random, 24-hour checklist token and a
+  scannable QR code. The mobile view exposes closing tasks only—never utility,
+  cost, or assumption data.
+- Protected equipment is excluded from the staff checklist. The public task
+  API accepts only task IDs already authorized in that checklist session.
+- Event explanations cite the exact event sequence, time, transition, and
+  operating rules. Behavioural events use medium confidence; deterministic
+  safety rulings use high confidence.
+- Raw utility files are parsed in memory and discarded. Uploaded filenames are
+  normalized before storage to avoid retaining accidental personal metadata.
+
 ## Local development
 
 ### Backend
@@ -65,6 +81,10 @@ npm run dev
 The web application expects the API at `http://127.0.0.1:8000`. Set
 `VITE_API_URL` to override it.
 
+Docker is intentionally not required for the MVP. Local Python, Node.js, and
+SQLite keep the hackathon setup fast; containerization can be added later when
+deployment targets justify it.
+
 Create the Singapore demo project and bill with:
 
 ```bash
@@ -78,5 +98,5 @@ scenario settings, simulation, and impact-analysis endpoints.
 
 ```bash
 cd backend && .venv/bin/python -m pytest
-cd frontend && npm run build
+cd frontend && npm test && npm run build
 ```

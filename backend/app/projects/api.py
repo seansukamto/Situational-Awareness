@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi.responses import PlainTextResponse
 
 from ..simulation import build_demo_store
 from .bills import parse_bill_bytes
+from .checklists import complete_task, create_checklist
 from .impact import analyse_project
 from .models import (
     AnalysisRequest,
     BillConfirmation,
     BillStatus,
+    ChecklistSession,
     EvidenceField,
     EvidenceKind,
     ImpactAnalysis,
@@ -18,6 +24,7 @@ from .models import (
     UtilityBill,
     UtilityBillDraft,
 )
+from .reports import build_decision_brief
 from .repository import SQLiteRepository
 
 
@@ -91,7 +98,7 @@ def bootstrap_demo(repo: SQLiteRepository = Depends(repository)) -> dict:
             status=BillStatus.CONFIRMED,
             bill_id=DEMO_BILL_ID,
         )
-    return {"project": project, "bills": [bill]}
+    return {"project": project, "bills": repo.list_bills(project.id)}
 
 
 @router.post("/projects", response_model=Project, status_code=status.HTTP_201_CREATED)
@@ -151,7 +158,9 @@ async def upload_bill(
     if not content:
         raise HTTPException(status_code=422, detail="Utility bill is empty")
     try:
-        draft = parse_bill_bytes(bill_file.filename or "utility_bill", content)
+        suffix = Path(bill_file.filename or "utility_bill.txt").suffix.lower()
+        safe_filename = f"uploaded_utility_bill{suffix or '.txt'}"
+        draft = parse_bill_bytes(safe_filename, content)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return repo.save_bill(project_id, draft)
@@ -210,3 +219,99 @@ def run_impact_analysis(
     )
     repo.save_analysis(analysis)
     return analysis
+
+
+@router.get("/privacy")
+def privacy_summary() -> dict:
+    return {
+        "raw_utility_files_retained": False,
+        "maximum_upload_bytes": MAX_UPLOAD_BYTES,
+        "stored_data": [
+            "confirmed utility fields",
+            "store configuration",
+            "scenario assumptions",
+            "simulation outputs",
+            "staff checklist completion state",
+        ],
+        "excluded_by_default": [
+            "customer names",
+            "staff names",
+            "payment details",
+            "raw utility files",
+        ],
+        "storage": "Local SQLite database configured by the operator",
+    }
+
+
+@router.post(
+    "/projects/{project_id}/checklists",
+    response_model=ChecklistSession,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_staff_checklist(
+    project_id: str,
+    repo: SQLiteRepository = Depends(repository),
+) -> ChecklistSession:
+    project = require_project(repo, project_id)
+    checklist = create_checklist(project)
+    repo.save_checklist(checklist)
+    return checklist
+
+
+def require_checklist(repo: SQLiteRepository, token: str) -> ChecklistSession:
+    checklist = repo.get_checklist(token)
+    if checklist is None:
+        raise HTTPException(status_code=404, detail="Checklist not found")
+    if checklist.expires_at < datetime.now(UTC):
+        raise HTTPException(status_code=410, detail="Checklist link has expired")
+    return checklist
+
+
+@router.get("/checklists/{token}", response_model=ChecklistSession)
+def get_staff_checklist(
+    token: str,
+    repo: SQLiteRepository = Depends(repository),
+) -> ChecklistSession:
+    return require_checklist(repo, token)
+
+
+@router.post(
+    "/checklists/{token}/tasks/{task_id}/complete",
+    response_model=ChecklistSession,
+)
+def complete_staff_task(
+    token: str,
+    task_id: str,
+    repo: SQLiteRepository = Depends(repository),
+) -> ChecklistSession:
+    checklist = require_checklist(repo, token)
+    try:
+        updated = complete_task(checklist, task_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    repo.update_checklist(updated)
+    return updated
+
+
+@router.get(
+    "/projects/{project_id}/analyses/{analysis_id}/report.md",
+    response_class=PlainTextResponse,
+)
+def download_decision_brief(
+    project_id: str,
+    analysis_id: str,
+    repo: SQLiteRepository = Depends(repository),
+) -> PlainTextResponse:
+    project = require_project(repo, project_id)
+    analysis = repo.get_analysis(analysis_id)
+    if analysis is None or analysis.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+    bill = repo.get_bill(analysis.bill_id)
+    if bill is None:
+        raise HTTPException(status_code=404, detail="Analysis bill not found")
+    report = build_decision_brief(project, bill, analysis)
+    filename = f"situational-awareness-{project_id}-decision-brief.md"
+    return PlainTextResponse(
+        report,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

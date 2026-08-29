@@ -168,6 +168,16 @@ class SimulationEvent(BaseModel):
     data: dict[str, Any] = Field(default_factory=dict)
 
 
+class EventExplanation(BaseModel):
+    event_seq: int
+    summary: str
+    rationale: str
+    rules_checked: list[str]
+    grounded_in: list[str]
+    counterfactual: str
+    confidence: Literal["high", "medium"]
+
+
 class RunMetrics(BaseModel):
     total_kwh: float
     after_hours_kwh: float

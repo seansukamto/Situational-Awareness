@@ -1,8 +1,13 @@
 import type {
   DemoBundle,
+  ChecklistSession,
+  EventExplanation,
   ImpactAnalysis,
+  Project,
+  ScenarioSettings,
   ScenarioComparison,
   Store,
+  UtilityBill,
 } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
@@ -34,4 +39,60 @@ export function runAnalysis(projectId: string, seed: number): Promise<ImpactAnal
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ samples: 120, seed }),
   });
+}
+
+export function fetchExplanations(
+  scenarioId: "baseline" | "green-close",
+  seed: number,
+): Promise<EventExplanation[]> {
+  return request(`/api/simulations/explanations?scenario_id=${scenarioId}&seed=${seed}`);
+}
+
+export function createStaffChecklist(projectId: string): Promise<ChecklistSession> {
+  return request(`/api/projects/${projectId}/checklists`, { method: "POST" });
+}
+
+export function fetchChecklist(token: string): Promise<ChecklistSession> {
+  return request(`/api/checklists/${token}`);
+}
+
+export function completeChecklistTask(token: string, taskId: string): Promise<ChecklistSession> {
+  return request(`/api/checklists/${token}/tasks/${taskId}/complete`, { method: "POST" });
+}
+
+export function updateScenarioSettings(
+  projectId: string,
+  settings: ScenarioSettings,
+): Promise<Project> {
+  return request(`/api/projects/${projectId}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+}
+
+export function uploadUtilityBill(projectId: string, file: File): Promise<UtilityBill> {
+  const body = new FormData();
+  body.append("bill_file", file);
+  return request(`/api/projects/${projectId}/bills/upload`, { method: "POST", body });
+}
+
+export function confirmUtilityBill(
+  projectId: string,
+  billId: string,
+  values: Pick<UtilityBill, "period_start" | "period_end" | "total_kwh" | "total_cost_sgd">,
+): Promise<UtilityBill> {
+  return request(`/api/projects/${projectId}/bills/${billId}/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+}
+
+export async function downloadDecisionBrief(projectId: string, analysisId: string): Promise<string> {
+  const response = await fetch(
+    `${API_URL}/api/projects/${projectId}/analyses/${analysisId}/report.md`,
+  );
+  if (!response.ok) throw new Error("Decision brief could not be generated");
+  return response.text();
 }

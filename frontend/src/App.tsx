@@ -1,32 +1,28 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
-import { bootstrapDemo, fetchComparison, runAnalysis } from "./api";
+import {
+  bootstrapDemo,
+  createStaffChecklist,
+  downloadDecisionBrief,
+  fetchComparison,
+  fetchExplanations,
+  runAnalysis,
+} from "./api";
+import { BillUpload } from "./components/BillUpload";
 import { ImpactPanel } from "./components/ImpactPanel";
 import { ReplayTimeline } from "./components/ReplayTimeline";
+import { ScenarioSettings } from "./components/ScenarioSettings";
+import { StaffHandoff } from "./components/StaffHandoff";
 import type {
   SimulationEvent,
+  UtilityBill,
 } from "./types";
 import { buildWorld } from "./world";
 
 const StoreScene = lazy(() =>
   import("./components/StoreScene").then((module) => ({ default: module.StoreScene })),
 );
-
-function gameMasterExplanation(event: SimulationEvent | null): string {
-  if (!event) return "The Game Master owns time, validates every proposed action, and writes the event ledger.";
-  const explanations: Record<string, string> = {
-    customer_moved: "Consumer movement updates the shared world before staff actions are evaluated.",
-    customer_exited: "A departing consumer releases customer-facing equipment only after they leave.",
-    action_rejected: "The proposed action failed a safety, role, or customer-experience rule.",
-    equipment_state_changed: "The action passed authority, criticality, and occupancy checks before execution.",
-    nudge_sent: "Green Close assigns responsibility and adds a contextual team reminder.",
-    checklist_completed: "All assigned loads for this staff agent are resolved in the authoritative state.",
-    store_closed: "New arrivals stop, but customer-facing loads stay protected until the last shopper exits.",
-    simulation_completed: "The final metrics are derived from this exact event ledger and can be replayed.",
-  };
-  return explanations[event.type] ?? "This event changed the authoritative store state for the next decision tick.";
-}
 
 function eventTone(type: string): string {
   if (type.includes("rejected")) return "blocked";
@@ -40,6 +36,9 @@ export default function App() {
   const [scenarioView, setScenarioView] = useState<"baseline" | "intervention">("intervention");
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [confirmedBill, setConfirmedBill] = useState<UtilityBill | null>(null);
+  const [showHandoff, setShowHandoff] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const demo = useQuery({ queryKey: ["demo"], queryFn: bootstrapDemo, retry: 1 });
   const comparison = useQuery({
@@ -52,6 +51,15 @@ export default function App() {
     queryFn: () => runAnalysis(demo.data!.project.id, seed),
     enabled: Boolean(demo.data?.project.id),
     retry: 1,
+  });
+  const explanations = useQuery({
+    queryKey: ["explanations", scenarioView, seed],
+    queryFn: () => fetchExplanations(scenarioView === "baseline" ? "baseline" : "green-close", seed),
+    retry: 1,
+  });
+  const handoff = useMutation({
+    mutationFn: () => createStaffChecklist(demo.data!.project.id),
+    onSuccess: () => setShowHandoff(true),
   });
 
   const run = comparison.data
@@ -73,8 +81,11 @@ export default function App() {
   }, [scenarioView, seed]);
 
   const currentEvent = step > 0 ? events[step - 1] : null;
+  const currentExplanation = currentEvent
+    ? explanations.data?.find((item) => item.event_seq === currentEvent.seq)
+    : null;
   const recentEvents = events.slice(Math.max(0, step - 4), step).reverse();
-  const bill = demo.data?.bills[0];
+  const bill = confirmedBill ?? demo.data?.bills[0];
   const loading = demo.isLoading || comparison.isLoading;
   const error = demo.error ?? comparison.error;
 
@@ -97,6 +108,22 @@ export default function App() {
       </main>
     );
   }
+
+  const exportReport = async () => {
+    if (!analysis.data) return;
+    setExporting(true);
+    try {
+      const report = await downloadDecisionBrief(project.id, analysis.data.id);
+      const url = URL.createObjectURL(new Blob([report], { type: "text/markdown" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "situational-awareness-decision-brief.md";
+      link.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="product-shell">
@@ -133,7 +160,12 @@ export default function App() {
                 <option value={173}>173 · Slow adoption</option>
               </select>
             </label>
-            <button type="button" className="export-button" disabled>Export report</button>
+            <button type="button" className="handoff-button" disabled={handoff.isPending} onClick={() => handoff.mutate()}>
+              {handoff.isPending ? "Creating…" : "Staff handoff"}
+            </button>
+            <button type="button" className="export-button" disabled={!analysis.data || exporting} onClick={exportReport}>
+              {exporting ? "Preparing…" : "Export brief"}
+            </button>
           </div>
         </header>
 
@@ -184,7 +216,12 @@ export default function App() {
               <div className="gm-state">
                 <span>Current ruling</span>
                 <strong>{currentEvent?.type.replaceAll("_", " ") ?? "Awaiting replay"}</strong>
-                <p>{gameMasterExplanation(currentEvent)}</p>
+                <p>{currentExplanation?.rationale ?? "The Game Master owns time, validates every proposed action, and writes the event ledger."}</p>
+                {currentExplanation && (
+                  <div className="explanation-rules">
+                    {currentExplanation.rules_checked.slice(0, 3).map((rule) => <span key={rule}>{rule}</span>)}
+                  </div>
+                )}
               </div>
               <div className="rule-stack">
                 <span>Live constraints</span>
@@ -206,6 +243,7 @@ export default function App() {
         </section>
 
         <ImpactPanel comparison={comparison.data} analysis={analysis.data} />
+        <ScenarioSettings project={project} />
 
         <section className="evidence-section" id="evidence">
           <div className="section-heading">
@@ -232,9 +270,15 @@ export default function App() {
               <div><i className="evidence-assumed" /><span><strong>Assumed</strong>Equipment loads and operating days</span></div>
               <div><i className="evidence-simulated" /><span><strong>Simulated</strong>Behaviour and event outcomes</span></div>
             </article>
+            <BillUpload projectId={project.id} onConfirmed={setConfirmedBill} />
+            <article className="privacy-card">
+              <span className="privacy-lock">⌁</span>
+              <div><strong>Privacy by default</strong><p>Raw utility files are parsed in memory and discarded. The local database stores only confirmed fields, assumptions, and simulation outputs.</p></div>
+            </article>
           </div>
         </section>
       </main>
+      {showHandoff && handoff.data && <StaffHandoff checklist={handoff.data} onClose={() => setShowHandoff(false)} />}
     </div>
   );
 }
