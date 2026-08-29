@@ -1,5 +1,7 @@
 # Situational Awareness
 
+[![CI](https://github.com/seansukamto/Situational-Awareness/actions/workflows/ci.yml/badge.svg)](https://github.com/seansukamto/Situational-Awareness/actions/workflows/ci.yml)
+
 Situational Awareness is a retail sustainability digital twin. It combines a
 rule-governed store simulation, human-behaviour agents, auditable impact
 calculations, and a Three.js replay experience so operators can compare an
