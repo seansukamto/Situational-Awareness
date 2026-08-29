@@ -98,6 +98,17 @@ def test_game_day_task_marketplace_scoring_and_event_ledger(tmp_path):
         ).status_code == 401
         headers = join_headers(client, day, staff)
 
+        assert client.get("/api/game/leaderboard", headers=headers).json() == [
+            {
+                "rank": 1,
+                "staff_id": staff["id"],
+                "display_name": "Alex Tan",
+                "avatar_id": "associate",
+                "points": 0,
+                "tasks_completed": 0,
+            }
+        ]
+
         tasks = client.get("/api/game/tasks", headers=headers)
         assert tasks.status_code == 200
         assert len(tasks.json()) == 1

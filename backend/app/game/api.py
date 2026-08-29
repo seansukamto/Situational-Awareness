@@ -868,7 +868,15 @@ def build_leaderboard(
     staff_by_id = {
         item.id: item for item in repo.list_staff_profiles(game_day.project_id)
     }
-    totals: dict[str, dict[str, int]] = {}
+    participating_staff = {
+        event.staff_id
+        for event in repo.list_game_day_events(game_day.id)
+        if event.type == GameEventType.STAFF_JOINED and event.staff_id in staff_by_id
+    }
+    totals: dict[str, dict[str, int]] = {
+        staff_id: {"points": 0, "tasks": 0}
+        for staff_id in participating_staff
+    }
     for score in repo.list_score_entries(game_day.id):
         current = totals.setdefault(score.staff_id, {"points": 0, "tasks": 0})
         current["points"] += score.points

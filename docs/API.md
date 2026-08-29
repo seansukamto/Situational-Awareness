@@ -98,6 +98,8 @@ must use the authoritative equipment zone and role permissions. Claim updates
 use a versioned SQLite transaction so two staff members cannot win the same
 task. Session tokens are returned once and stored only as SHA-256 hashes. Score
 entries are unique per task instance, preventing duplicate completion points.
+Leaderboards include every staff profile that joined the day, including
+participants who have not yet earned points.
 Closing a day is idempotent: it stores one structured analysis and one learned
 policy for that ledger. OpenAI or Ollama is used only when the project's
 allow-listed backend provider is configured; invalid or unavailable output

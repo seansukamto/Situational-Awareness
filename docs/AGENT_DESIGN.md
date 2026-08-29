@@ -52,6 +52,22 @@ The Game Master is policy authority, not an LLM. OpenAI or Ollama may suggest a
 candidate action through the strict public `AgentProposal` schema, but cannot
 bypass deterministic validators or perform authoritative arithmetic.
 
+## Live staff game learning loop
+
+The live game does not replay synthetic consumers or ask a model to mutate the
+store. Staff voluntarily snatch safe task instances from an atomic marketplace.
+Every join, claim, release, completion, and point award enters an immutable day
+ledger. After close, OpenAI or Ollama may produce a strict structured narrative;
+unavailable or invalid output falls back to deterministic analysis.
+
+The narrative is advisory. The only automatically applied learning fields are
+bounded domain point multipliers and a per-staff ordering of domains derived
+from verified completion history. The next game day snapshots the exact policy
+version and exposes one explainable Game Master pick while keeping every other
+eligible task available. Model output cannot change protected equipment,
+role/zone/equipment authority, verification status, score arithmetic, or any
+employment decision.
+
 ## Provider and memory boundary
 
 - `DeterministicAgentProvider` returns the existing paired-seed proposal.

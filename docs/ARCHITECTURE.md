@@ -5,7 +5,7 @@
 ```mermaid
 flowchart LR
     Manager["Manager workspace"] --> API["FastAPI application"]
-    Staff["Scoped mobile checklist"] --> API
+    Staff["QR staff game"] --> API
     API --> Projects["Project and bill service"]
     API --> Providers["Agent provider boundary"]
     Providers --> Deterministic["Deterministic rules"]
@@ -13,9 +13,15 @@ flowchart LR
     Providers --> Ollama["Ollama-compatible API"]
     Providers --> GM
     API --> GM["Authoritative Game Master"]
+    API --> LiveGame["Live task marketplace"]
     Projects --> DB[("Local SQLite")]
     Projects --> Impact["Monte Carlo impact analysis"]
     GM --> Ledger["Append-only event ledger"]
+    LiveGame --> DayLedger["Measured day ledger"]
+    DayLedger --> StaffReplay["Staff-only 3D replay"]
+    DayLedger --> Learning["Structured day analysis"]
+    Learning --> Policy["Bounded versioned policy"]
+    Policy --> LiveGame
     Ledger --> Replay["React Three Fiber replay"]
     Impact --> Report["Decision brief"]
     Ledger --> Report
@@ -32,6 +38,15 @@ schema permits only `move`, `operate_equipment`, `assist_customer`,
 rationale, and confidence. Provider-specific transport stays outside the Game
 Master. The Game Master is the sole authority for permissions, state
 transitions, arithmetic, and event logging.
+
+The live staff game is a separate measured workflow from the synthetic paired
+simulation. Its day ledger records real QR joins, task claims, releases,
+completions, and derived points. The staff replay projects only those staff
+events and deliberately renders no consumer agents. Closing a day creates a
+structured analysis and an immutable policy version. Learned changes are
+limited to `0.90x`–`1.10x` domain point weights and explainable task ranking;
+role, zone, equipment, protected-load, and employment boundaries cannot be
+changed by model output.
 
 ## Simulation tick
 
@@ -67,14 +82,18 @@ never used to force-fit the closing-equipment model.
 
 ## Data and privacy
 
-- SQLite stores projects, confirmed bill fields, analyses, and checklist state.
+- SQLite stores projects, confirmed bill fields, simulation analyses, staff
+  profiles, dated game ledgers, game analyses, and immutable learned policies.
 - PDF/JSON/CSV/TXT uploads are limited to 5 MB and parsed in memory.
 - Raw files are discarded and uploaded filenames are normalized before storage.
-- Staff links use random URL-safe tokens, expire after 24 hours, and expose only
-  the authorized task list and completion state.
+- Staff game links use random URL-safe join tokens. PINs use salted scrypt
+  hashes and day-scoped bearer tokens are stored only as SHA-256 hashes. Staff
+  endpoints expose only the authorized task market, own claims, and leaderboard.
 - Simulation completion metrics and staff handoff use the same authorized-task
   function, which excludes protected loads and assignments outside role authority.
 - Customer and staff agents use archetypes rather than real identities.
+- Live game profiles are manager-configured identities and must be covered by a
+  pilot privacy notice and retention policy before production deployment.
 - Provider credentials are read from backend environment variables only. Safe
   provider fingerprints, model names, public rationales, usage, and latency may
   be persisted; secrets, raw prompts, and hidden reasoning are not.
@@ -100,3 +119,6 @@ New sustainability scenarios should add:
 - Checklist tokens are suitable for a local pilot prototype; production should
   add user authentication, revocation, rate limits, audit identities, and a
   managed secrets/deployment strategy.
+- Self-confirmed live tasks are engagement evidence, not verified resource
+  savings. Production impact claims need equipment QR, manager, or sensor
+  verification plus a documented retention and employee-use policy.
